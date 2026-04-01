@@ -1,7 +1,6 @@
 import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
-import { createServiceClient } from '@/lib/supabase/server'
-import Sidebar from '@/components/dashboard/Sidebar'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
+import TopNav from '@/components/dashboard/TopNav'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -21,9 +20,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const properties = (owner.properties ?? []).filter((p: { active: boolean }) => p.active)
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
-      <Sidebar owner={owner} properties={properties} />
-      <main className="flex-1 min-w-0">
+    <div className="min-h-screen" style={{ backgroundColor: '#1D1D1B' }}>
+      <TopNav owner={owner} properties={properties} />
+      <main className="pt-16 min-w-0">
         {children}
       </main>
     </div>

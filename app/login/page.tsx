@@ -3,14 +3,13 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
-import Image from 'next/image'
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('')
+  const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const router = useRouter()
+  const [loading, setLoading]   = useState(false)
+  const [error, setError]       = useState<string | null>(null)
+  const router  = useRouter()
   const supabase = createClient()
 
   async function handleLogin(e: React.FormEvent) {
@@ -31,21 +30,55 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F7F7F7] flex items-center justify-center px-4">
-      <div className="w-full max-w-md">
+    <div
+      className="min-h-screen flex items-center justify-center px-4"
+      style={{ backgroundColor: '#1D1D1B' }}
+    >
+      {/* Subtle purple glow backdrop */}
+      <div
+        className="fixed inset-0 pointer-events-none"
+        style={{
+          background: 'radial-gradient(ellipse 60% 50% at 50% 0%, rgba(77,67,158,0.18) 0%, transparent 70%)',
+        }}
+      />
+
+      <div className="relative z-10 w-full max-w-md">
         {/* Logo */}
-        <div className="flex justify-center mb-8">
-          <Image src="/brand/nok-logo-dark.png" alt="NOK" width={130} height={35} priority />
+        <div className="flex flex-col items-center mb-10">
+          <p
+            className="font-serif text-5xl font-light tracking-[0.3em] text-[#F2F2F2] mb-3"
+          >
+            NOK
+          </p>
+          <p style={{ color: 'rgba(242,242,242,0.35)', letterSpacing: '0.15em' }} className="text-xs uppercase">
+            Portal de Propietarios
+          </p>
         </div>
 
         {/* Card */}
-        <div className="bg-white rounded-2xl shadow-sm border border-[#EFEFEF] p-8">
-          <h1 className="text-xl font-bold text-[#1D1D1B] mb-1">Acceso al portal</h1>
-          <p className="text-sm text-[#8A8A8A] mb-6">Exclusivo para propietarios NOK</p>
+        <div
+          className="rounded-2xl p-8"
+          style={{
+            backgroundColor: '#141413',
+            border: '1px solid rgba(242,242,242,0.07)',
+            boxShadow: '0 24px 64px rgba(0,0,0,0.5)',
+          }}
+        >
+          <h1 className="font-serif text-3xl font-light text-[#F2F2F2] mb-1">
+            Acceso al portal
+          </h1>
+          <p className="text-sm mb-8" style={{ color: 'rgba(242,242,242,0.4)' }}>
+            Exclusivo para propietarios NOK
+          </p>
 
           <form onSubmit={handleLogin} className="space-y-5">
             <div>
-              <label className="block text-sm font-medium text-[#1D1D1B] mb-1.5">Correo electrónico</label>
+              <label
+                className="block text-xs font-medium mb-2 uppercase tracking-widest"
+                style={{ color: 'rgba(242,242,242,0.45)' }}
+              >
+                Correo electrónico
+              </label>
               <input
                 type="email"
                 value={email}
@@ -53,12 +86,22 @@ export default function LoginPage() {
                 required
                 autoComplete="email"
                 placeholder="tu@correo.com"
-                className="w-full px-4 py-2.5 border border-[#C8C8C8] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0080C6] focus:border-transparent transition placeholder:text-[#C8C8C8]"
+                className="w-full px-4 py-3 rounded-xl text-sm text-[#F2F2F2] placeholder-[rgba(242,242,242,0.2)] outline-none transition-all duration-300 focus:ring-2"
+                style={{
+                  backgroundColor: '#1E1E1C',
+                  border: '1px solid rgba(242,242,242,0.08)',
+                  '--tw-ring-color': 'rgba(77,67,158,0.5)',
+                } as React.CSSProperties}
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-[#1D1D1B] mb-1.5">Contraseña</label>
+              <label
+                className="block text-xs font-medium mb-2 uppercase tracking-widest"
+                style={{ color: 'rgba(242,242,242,0.45)' }}
+              >
+                Contraseña
+              </label>
               <input
                 type="password"
                 value={password}
@@ -66,12 +109,23 @@ export default function LoginPage() {
                 required
                 autoComplete="current-password"
                 placeholder="••••••••"
-                className="w-full px-4 py-2.5 border border-[#C8C8C8] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0080C6] focus:border-transparent transition placeholder:text-[#C8C8C8]"
+                className="w-full px-4 py-3 rounded-xl text-sm text-[#F2F2F2] placeholder-[rgba(242,242,242,0.2)] outline-none transition-all duration-300 focus:ring-2"
+                style={{
+                  backgroundColor: '#1E1E1C',
+                  border: '1px solid rgba(242,242,242,0.08)',
+                  '--tw-ring-color': 'rgba(77,67,158,0.5)',
+                } as React.CSSProperties}
               />
             </div>
 
             {error && (
-              <div className="bg-red-50 border border-red-100 text-red-600 text-sm px-4 py-3 rounded-lg">
+              <div
+                className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm"
+                style={{ backgroundColor: 'rgba(242,0,34,0.08)', border: '1px solid rgba(242,0,34,0.2)', color: '#ff6b7a' }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0">
+                  <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
                 {error}
               </div>
             )}
@@ -79,16 +133,36 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-[#0080C6] hover:bg-[#0068A3] text-white py-2.5 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-3 rounded-xl text-sm font-semibold text-white transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{
+                backgroundColor: '#4D439E',
+                boxShadow: loading ? 'none' : '0 4px 20px rgba(77,67,158,0.35)',
+              }}
+              onMouseEnter={e => { if (!loading) (e.currentTarget as HTMLElement).style.backgroundColor = '#5d52b0' }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.backgroundColor = '#4D439E' }}
             >
-              {loading ? 'Entrando...' : 'Entrar'}
+              {loading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3V0a12 12 0 00-12 12h4z"/>
+                  </svg>
+                  Entrando...
+                </span>
+              ) : 'Entrar'}
             </button>
           </form>
         </div>
 
-        <p className="text-center text-xs text-[#C8C8C8] mt-6">
-          ¿Problemas para acceder? Escríbenos a{' '}
-          <a href="mailto:hola@nok.do" className="text-[#0080C6] hover:underline">hola@nok.do</a>
+        <p className="text-center text-xs mt-6" style={{ color: 'rgba(242,242,242,0.25)' }}>
+          ¿Problemas para acceder?{' '}
+          <a href="mailto:hola@nok.do" className="text-[#B9B5DC] hover:text-[#F2F2F2] transition-colors">
+            Escríbenos
+          </a>
+        </p>
+
+        <p className="text-center text-xs mt-2" style={{ color: 'rgba(242,242,242,0.15)', letterSpacing: '0.1em' }}>
+          Curated stays designed to flow with you
         </p>
       </div>
     </div>

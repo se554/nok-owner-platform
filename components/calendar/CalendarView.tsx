@@ -38,19 +38,20 @@ interface CalendarViewProps {
 }
 
 const MONTHS_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
-const DAYS_ES = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb']
+const DAYS_ES   = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb']
 
-const CHANNEL_COLORS: Record<string, string> = {
-  airbnb:       'bg-rose-500',
-  'booking.com':'bg-blue-500',
-  direct:       'bg-green-500',
-  vrbo:         'bg-purple-500',
+const CHANNEL_COLORS: Record<string, { bg: string; border: string; text: string }> = {
+  airbnb:        { bg: 'rgba(239,68,68,0.15)',   border: '#ef4444', text: '#fca5a5' },
+  'booking.com': { bg: 'rgba(59,130,246,0.15)',  border: '#3b82f6', text: '#93c5fd' },
+  direct:        { bg: 'rgba(14,104,69,0.2)',    border: '#22c55e', text: '#86efac' },
+  vrbo:          { bg: 'rgba(139,92,246,0.15)',  border: '#8b5cf6', text: '#c4b5fd' },
 }
 
-function getChannelColor(channel: string | null) {
-  if (!channel) return 'bg-gray-400'
-  const key = channel.toLowerCase()
-  return CHANNEL_COLORS[key] ?? 'bg-gray-500'
+const DEFAULT_CHANNEL = { bg: 'rgba(77,67,158,0.15)', border: '#4D439E', text: '#B9B5DC' }
+
+function getChannelStyle(channel: string | null) {
+  if (!channel) return DEFAULT_CHANNEL
+  return CHANNEL_COLORS[channel.toLowerCase()] ?? DEFAULT_CHANNEL
 }
 
 function fmt(amount: number | null, currency = 'USD') {
@@ -62,160 +63,208 @@ export default function CalendarView({ propertyId, year, month, reservations, pr
   const router = useRouter()
   const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null)
 
-  // Build pricing map by date
+  // Maps
   const pricingMap = new Map<string, PricingDay>()
   for (const p of pricing) pricingMap.set(p.calendar_date, p)
 
-  // Build reservation coverage map: date -> reservation
   const reservationMap = new Map<string, Reservation>()
   for (const r of reservations) {
-    const checkIn = new Date(r.check_in + 'T00:00:00')
+    const checkIn  = new Date(r.check_in  + 'T00:00:00')
     const checkOut = new Date(r.check_out + 'T00:00:00')
-    const current = new Date(checkIn)
+    const current  = new Date(checkIn)
     while (current < checkOut) {
-      const key = current.toISOString().split('T')[0]
-      reservationMap.set(key, r)
+      reservationMap.set(current.toISOString().split('T')[0], r)
       current.setDate(current.getDate() + 1)
     }
   }
 
-  // Calendar grid
+  // Grid
   const firstOfMonth = new Date(year, month - 1, 1)
-  const lastOfMonth = new Date(year, month, 0)
-  const startPad = firstOfMonth.getDay() // 0=Sun
-  const totalDays = lastOfMonth.getDate()
+  const lastOfMonth  = new Date(year, month, 0)
+  const startPad     = firstOfMonth.getDay()
+  const totalDays    = lastOfMonth.getDate()
 
   const cells: Array<{ date: string; day: number } | null> = []
   for (let i = 0; i < startPad; i++) cells.push(null)
   for (let d = 1; d <= totalDays; d++) {
-    const date = `${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`
-    cells.push({ date, day: d })
+    cells.push({ date: `${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`, day: d })
   }
-  // Pad to complete last row
   while (cells.length % 7 !== 0) cells.push(null)
 
   function navigate(delta: number) {
-    let m = month + delta
-    let y = year
+    let m = month + delta, y = year
     if (m > 12) { m = 1; y++ }
-    if (m < 1) { m = 12; y-- }
+    if (m < 1)  { m = 12; y-- }
     router.push(`/dashboard/${propertyId}/calendar?month=${m}&year=${y}`)
   }
 
-  const today = new Date().toISOString().split('T')[0]
+  const today   = new Date().toISOString().split('T')[0]
+  const monthPfx = `${year}-${String(month).padStart(2,'0')}-`
 
-  // Summary stats
-  const bookedDays = [...reservationMap.keys()].filter(d => d >= `${year}-${String(month).padStart(2,'0')}-01` && d <= `${year}-${String(month).padStart(2,'0')}-${String(totalDays).padStart(2,'0')}`).length
-  const occupancy = Math.round((bookedDays / totalDays) * 100)
+  const bookedDays   = [...reservationMap.keys()].filter(d => d.startsWith(monthPfx)).length
+  const occupancy    = Math.round((bookedDays / totalDays) * 100)
   const monthRevenue = reservations
-    .filter(r => r.check_in >= `${year}-${String(month).padStart(2,'0')}-01` && r.check_in <= `${year}-${String(month).padStart(2,'0')}-${String(totalDays).padStart(2,'0')}`)
-    .reduce((sum, r) => sum + (r.owner_revenue ?? 0), 0)
+    .filter(r => r.check_in.startsWith(monthPfx))
+    .reduce((s, r) => s + (r.owner_revenue ?? 0), 0)
 
   return (
     <div>
       {/* Stats row */}
-      <div className="grid grid-cols-3 gap-3 mb-5">
-        <div className="bg-white border border-gray-200 rounded-xl p-4">
-          <p className="text-xs text-gray-400 font-medium">Ocupación</p>
-          <p className="text-2xl font-bold text-gray-900">{occupancy}%</p>
-          <p className="text-xs text-gray-400">{bookedDays}/{totalDays} días</p>
-        </div>
-        <div className="bg-white border border-gray-200 rounded-xl p-4">
-          <p className="text-xs text-gray-400 font-medium">Reservas</p>
-          <p className="text-2xl font-bold text-gray-900">{reservations.length}</p>
-          <p className="text-xs text-gray-400">este mes</p>
-        </div>
-        <div className="bg-white border border-gray-200 rounded-xl p-4">
-          <p className="text-xs text-gray-400 font-medium">Ingresos netos</p>
-          <p className="text-2xl font-bold text-gray-900">{fmt(monthRevenue) ?? '—'}</p>
-          <p className="text-xs text-gray-400">propietario</p>
-        </div>
+      <div className="grid grid-cols-3 gap-3 mb-6">
+        {[
+          { label: 'Ocupación', value: `${occupancy}%`, sub: `${bookedDays}/${totalDays} días` },
+          { label: 'Reservas', value: String(reservations.length), sub: 'este mes' },
+          { label: 'Ingresos netos', value: fmt(monthRevenue) ?? '—', sub: 'propietario' },
+        ].map(s => (
+          <div key={s.label} className="rounded-2xl p-5 nok-card">
+            <p className="text-xs uppercase tracking-widest mb-2" style={{ color: 'rgba(242,242,242,0.35)' }}>{s.label}</p>
+            <p className="font-serif text-3xl font-light text-[#F2F2F2]">{s.value}</p>
+            <p className="text-xs mt-1" style={{ color: 'rgba(242,242,242,0.3)' }}>{s.sub}</p>
+          </div>
+        ))}
       </div>
 
       {/* Calendar card */}
-      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+      <div
+        className="rounded-2xl overflow-hidden"
+        style={{ backgroundColor: '#141413', border: '1px solid rgba(242,242,242,0.07)' }}
+      >
         {/* Month navigation */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-          <button onClick={() => navigate(-1)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-600 transition">‹</button>
-          <h2 className="font-semibold text-gray-900">{MONTHS_ES[month - 1]} {year}</h2>
-          <button onClick={() => navigate(1)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-600 transition">›</button>
+        <div
+          className="flex items-center justify-between px-6 py-4"
+          style={{ borderBottom: '1px solid rgba(242,242,242,0.06)' }}
+        >
+          <button
+            onClick={() => navigate(-1)}
+            className="w-9 h-9 flex items-center justify-center rounded-xl transition-all duration-200 cursor-pointer"
+            style={{ color: 'rgba(242,242,242,0.45)', border: '1px solid rgba(242,242,242,0.07)' }}
+            onMouseEnter={e => (e.currentTarget as HTMLElement).style.borderColor = 'rgba(77,67,158,0.5)'}
+            onMouseLeave={e => (e.currentTarget as HTMLElement).style.borderColor = 'rgba(242,242,242,0.07)'}
+          >
+            ‹
+          </button>
+          <h2 className="font-serif text-xl font-light text-[#F2F2F2]">
+            {MONTHS_ES[month - 1]} {year}
+          </h2>
+          <button
+            onClick={() => navigate(1)}
+            className="w-9 h-9 flex items-center justify-center rounded-xl transition-all duration-200 cursor-pointer"
+            style={{ color: 'rgba(242,242,242,0.45)', border: '1px solid rgba(242,242,242,0.07)' }}
+            onMouseEnter={e => (e.currentTarget as HTMLElement).style.borderColor = 'rgba(77,67,158,0.5)'}
+            onMouseLeave={e => (e.currentTarget as HTMLElement).style.borderColor = 'rgba(242,242,242,0.07)'}
+          >
+            ›
+          </button>
         </div>
 
         {/* Day headers */}
-        <div className="grid grid-cols-7 border-b border-gray-100">
+        <div
+          className="grid grid-cols-7"
+          style={{ borderBottom: '1px solid rgba(242,242,242,0.05)' }}
+        >
           {DAYS_ES.map(d => (
-            <div key={d} className="py-2 text-center text-xs font-semibold text-gray-400">{d}</div>
+            <div key={d} className="py-3 text-center text-xs font-medium tracking-widest uppercase"
+              style={{ color: 'rgba(242,242,242,0.25)' }}>
+              {d}
+            </div>
           ))}
         </div>
 
         {/* Calendar grid */}
         <div className="grid grid-cols-7">
           {cells.map((cell, i) => {
-            if (!cell) return <div key={i} className="min-h-[80px] border-b border-r border-gray-50 bg-gray-50/50" />
+            if (!cell) return (
+              <div
+                key={i}
+                className="min-h-[88px]"
+                style={{ borderRight: '1px solid rgba(242,242,242,0.04)', borderBottom: '1px solid rgba(242,242,242,0.04)', backgroundColor: '#111110' }}
+              />
+            )
 
             const { date, day } = cell
-            const reservation = reservationMap.get(date)
-            const price = pricingMap.get(date)
-            const isToday = date === today
-            const isPast = date < today
-            const isCheckIn = reservation?.check_in === date
-            const isCheckOut = reservation?.check_out === date
+            const reservation  = reservationMap.get(date)
+            const price        = pricingMap.get(date)
+            const isToday      = date === today
+            const isPast       = date < today
+            const isCheckIn    = reservation?.check_in === date
+            const channelStyle = reservation ? getChannelStyle(reservation.channel) : DEFAULT_CHANNEL
 
             return (
               <div
                 key={date}
                 onClick={() => reservation && setSelectedReservation(reservation)}
-                className={`min-h-[80px] border-b border-r border-gray-100 p-1.5 flex flex-col
-                  ${reservation ? 'cursor-pointer' : ''}
-                  ${isPast ? 'bg-gray-50/60' : 'bg-white'}
-                  ${reservation ? 'hover:brightness-95' : ''}
-                `}
+                className="min-h-[88px] p-1.5 flex flex-col transition-colors duration-150"
+                style={{
+                  borderRight: '1px solid rgba(242,242,242,0.04)',
+                  borderBottom: '1px solid rgba(242,242,242,0.04)',
+                  backgroundColor: reservation
+                    ? `${channelStyle.bg}`
+                    : isPast ? '#111110' : '#141413',
+                  cursor: reservation ? 'pointer' : 'default',
+                }}
+                onMouseEnter={e => {
+                  if (reservation)
+                    (e.currentTarget as HTMLElement).style.filter = 'brightness(1.15)'
+                }}
+                onMouseLeave={e => {
+                  (e.currentTarget as HTMLElement).style.filter = 'none'
+                }}
               >
                 {/* Day number */}
                 <div className="flex items-start justify-between mb-1">
-                  <span className={`text-xs font-semibold w-6 h-6 flex items-center justify-center rounded-full
-                    ${isToday ? 'bg-black text-white' : isPast ? 'text-gray-300' : 'text-gray-700'}
-                  `}>
+                  <span
+                    className="w-6 h-6 flex items-center justify-center rounded-full text-xs font-medium"
+                    style={{
+                      backgroundColor: isToday ? '#4D439E' : 'transparent',
+                      color: isToday ? '#F2F2F2' : isPast ? 'rgba(242,242,242,0.2)' : 'rgba(242,242,242,0.6)',
+                    }}
+                  >
                     {day}
                   </span>
                   {isCheckIn && (
-                    <span className="text-[9px] text-green-600 font-semibold">IN</span>
+                    <span className="text-[9px] font-semibold px-1 py-0.5 rounded" style={{ color: '#4ade80', backgroundColor: 'rgba(74,222,128,0.1)' }}>IN</span>
                   )}
-                  {isCheckOut && !isCheckIn && (
-                    <span className="text-[9px] text-red-400 font-semibold">OUT</span>
+                  {reservation?.check_out === date && !isCheckIn && (
+                    <span className="text-[9px] font-semibold px-1 py-0.5 rounded" style={{ color: '#fca5a5', backgroundColor: 'rgba(252,165,165,0.1)' }}>OUT</span>
                   )}
                 </div>
 
                 {/* Reservation bar */}
                 {reservation && (
-                  <div className={`rounded px-1.5 py-1 mb-1 ${getChannelColor(reservation.channel)} bg-opacity-15 border-l-2 ${getChannelColor(reservation.channel).replace('bg-', 'border-')}`}>
-                    <p className="text-[10px] font-semibold text-gray-800 truncate leading-tight">
+                  <div
+                    className="rounded px-1.5 py-1 mb-1 flex-1"
+                    style={{
+                      borderLeft: `2px solid ${channelStyle.border}`,
+                      backgroundColor: 'rgba(0,0,0,0.2)',
+                    }}
+                  >
+                    <p className="text-[10px] font-medium truncate leading-tight" style={{ color: channelStyle.text }}>
                       {reservation.guest_name ?? 'Huésped'}
                     </p>
                     {isCheckIn && (
-                      <p className="text-[9px] text-gray-500 leading-tight">
-                        {reservation.nights}n · {reservation.channel ?? ''}
+                      <p className="text-[9px] leading-tight mt-0.5" style={{ color: 'rgba(242,242,242,0.4)' }}>
+                        {reservation.nights}n
                       </p>
                     )}
                   </div>
                 )}
 
-                {/* Rate from Guesty */}
+                {/* Rate */}
                 {!reservation && price?.base_rate && (
                   <div className="mt-auto">
-                    <p className="text-[10px] font-semibold text-gray-700">
+                    <p className="text-[10px] font-semibold" style={{ color: 'rgba(214,167,0,0.8)' }}>
                       {fmt(price.base_rate, price.currency ?? 'USD')}
                     </p>
                     {price.min_stay_nights && price.min_stay_nights > 1 && (
-                      <p className="text-[9px] text-gray-400">{price.min_stay_nights}n mín</p>
+                      <p className="text-[9px]" style={{ color: 'rgba(242,242,242,0.25)' }}>{price.min_stay_nights}n mín</p>
                     )}
                   </div>
                 )}
 
                 {/* Blocked */}
                 {!reservation && price?.is_blocked && (
-                  <div className="rounded bg-gray-200 px-1 py-0.5">
-                    <p className="text-[9px] text-gray-500">Bloqueado</p>
+                  <div className="rounded px-1 py-0.5 mt-auto" style={{ backgroundColor: 'rgba(242,242,242,0.05)' }}>
+                    <p className="text-[9px]" style={{ color: 'rgba(242,242,242,0.25)' }}>Bloqueado</p>
                   </div>
                 )}
               </div>
@@ -225,52 +274,92 @@ export default function CalendarView({ propertyId, year, month, reservations, pr
       </div>
 
       {/* Legend */}
-      <div className="flex flex-wrap items-center gap-4 mt-3 px-1">
-        <p className="text-xs text-gray-400 font-medium">Canales:</p>
-        {Object.entries(CHANNEL_COLORS).map(([channel, color]) => (
-          <div key={channel} className="flex items-center gap-1">
-            <div className={`w-2.5 h-2.5 rounded-sm ${color}`} />
-            <span className="text-xs text-gray-500 capitalize">{channel}</span>
+      <div className="flex flex-wrap items-center gap-4 mt-4 px-1">
+        <p className="text-xs uppercase tracking-widest" style={{ color: 'rgba(242,242,242,0.25)' }}>Canales:</p>
+        {Object.entries(CHANNEL_COLORS).map(([channel, style]) => (
+          <div key={channel} className="flex items-center gap-1.5">
+            <div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: style.border }} />
+            <span className="text-xs capitalize" style={{ color: 'rgba(242,242,242,0.4)' }}>{channel}</span>
           </div>
         ))}
-        <div className="flex items-center gap-1">
-          <div className="w-2.5 h-2.5 rounded-sm bg-gray-400" />
-          <span className="text-xs text-gray-500">Otro</span>
+        <div className="flex items-center gap-1.5">
+          <div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: '#4D439E' }} />
+          <span className="text-xs" style={{ color: 'rgba(242,242,242,0.4)' }}>Otro</span>
         </div>
       </div>
 
       {/* Reservation detail modal */}
       {selectedReservation && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setSelectedReservation(null)}>
-          <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-xl" onClick={e => e.stopPropagation()}>
-            <div className="flex items-start justify-between mb-4">
+        <div
+          className="fixed inset-0 flex items-end sm:items-center justify-center z-50 p-4"
+          style={{ backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
+          onClick={() => setSelectedReservation(null)}
+        >
+          <div
+            className="w-full max-w-sm rounded-2xl p-6"
+            style={{
+              backgroundColor: '#1E1E1C',
+              border: '1px solid rgba(77,67,158,0.3)',
+              boxShadow: '0 24px 64px rgba(0,0,0,0.6)',
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between mb-5">
               <div>
-                <p className="font-semibold text-gray-900 text-lg">{selectedReservation.guest_name ?? 'Huésped'}</p>
-                <div className="flex items-center gap-2 mt-0.5">
-                  <span className={`w-2 h-2 rounded-full ${getChannelColor(selectedReservation.channel)}`} />
-                  <p className="text-sm text-gray-500 capitalize">{selectedReservation.channel ?? 'Canal desconocido'}</p>
+                <p className="font-serif text-2xl font-light text-[#F2F2F2]">
+                  {selectedReservation.guest_name ?? 'Huésped'}
+                </p>
+                <div className="flex items-center gap-2 mt-1">
+                  <span
+                    className="w-2 h-2 rounded-full"
+                    style={{ backgroundColor: getChannelStyle(selectedReservation.channel).border }}
+                  />
+                  <p className="text-xs capitalize" style={{ color: 'rgba(242,242,242,0.4)' }}>
+                    {selectedReservation.channel ?? 'Canal desconocido'}
+                  </p>
                 </div>
               </div>
-              <button onClick={() => setSelectedReservation(null)} className="text-gray-400 hover:text-gray-600 text-xl leading-none">×</button>
+              <button
+                onClick={() => setSelectedReservation(null)}
+                className="w-8 h-8 flex items-center justify-center rounded-lg transition-colors cursor-pointer"
+                style={{ color: 'rgba(242,242,242,0.4)', border: '1px solid rgba(242,242,242,0.08)' }}
+                onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = '#F2F2F2'}
+                onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'rgba(242,242,242,0.4)'}
+              >
+                ×
+              </button>
             </div>
 
-            <div className="space-y-2.5">
-              <Row label="Check-in" value={new Date(selectedReservation.check_in + 'T00:00:00').toLocaleDateString('es-DO', { weekday: 'long', day: 'numeric', month: 'long' })} />
-              <Row label="Check-out" value={new Date(selectedReservation.check_out + 'T00:00:00').toLocaleDateString('es-DO', { weekday: 'long', day: 'numeric', month: 'long' })} />
-              <Row label="Noches" value={String(selectedReservation.nights ?? '—')} />
-              {selectedReservation.num_guests && <Row label="Huéspedes" value={String(selectedReservation.num_guests)} />}
+            <div className="space-y-3">
+              <ModalRow label="Check-in" value={new Date(selectedReservation.check_in + 'T00:00:00').toLocaleDateString('es-DO', { weekday: 'long', day: 'numeric', month: 'long' })} />
+              <ModalRow label="Check-out" value={new Date(selectedReservation.check_out + 'T00:00:00').toLocaleDateString('es-DO', { weekday: 'long', day: 'numeric', month: 'long' })} />
+              <ModalRow label="Noches" value={String(selectedReservation.nights ?? '—')} />
+              {selectedReservation.num_guests && <ModalRow label="Huéspedes" value={String(selectedReservation.num_guests)} />}
               {selectedReservation.total_price && (
-                <Row label="Precio total" value={fmt(selectedReservation.total_price, selectedReservation.currency ?? 'USD') ?? '—'} />
+                <ModalRow label="Precio total" value={fmt(selectedReservation.total_price, selectedReservation.currency ?? 'USD') ?? '—'} />
               )}
               {selectedReservation.owner_revenue && (
-                <Row label="Ingreso neto" value={fmt(selectedReservation.owner_revenue, selectedReservation.currency ?? 'USD') ?? '—'} highlight />
+                <div
+                  className="flex items-center justify-between pt-3 mt-1"
+                  style={{ borderTop: '1px solid rgba(242,242,242,0.07)' }}
+                >
+                  <span className="text-sm font-medium text-[#F2F2F2]">Ingreso neto</span>
+                  <span className="text-base font-semibold" style={{ color: '#4ade80' }}>
+                    {fmt(selectedReservation.owner_revenue, selectedReservation.currency ?? 'USD')}
+                  </span>
+                </div>
               )}
             </div>
 
-            <div className="mt-5 flex gap-2">
+            <div className="mt-6">
               <Link
                 href={`/dashboard/${propertyId}/reservations`}
-                className="flex-1 text-center text-sm border border-gray-200 rounded-lg py-2 hover:bg-gray-50 transition text-gray-700"
+                className="block text-center text-sm py-2.5 rounded-xl transition-all duration-200"
+                style={{
+                  color: '#B9B5DC',
+                  border: '1px solid rgba(77,67,158,0.3)',
+                  backgroundColor: 'rgba(77,67,158,0.08)',
+                }}
                 onClick={() => setSelectedReservation(null)}
               >
                 Ver todas las reservas
@@ -283,11 +372,11 @@ export default function CalendarView({ propertyId, year, month, reservations, pr
   )
 }
 
-function Row({ label, value, highlight = false }: { label: string; value: string; highlight?: boolean }) {
+function ModalRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex justify-between items-center">
-      <span className="text-sm text-gray-500">{label}</span>
-      <span className={`text-sm font-medium ${highlight ? 'text-green-700' : 'text-gray-900'}`}>{value}</span>
+    <div className="flex justify-between items-start gap-4">
+      <span className="text-sm shrink-0" style={{ color: 'rgba(242,242,242,0.4)' }}>{label}</span>
+      <span className="text-sm font-medium text-[#F2F2F2] text-right">{value}</span>
     </div>
   )
 }

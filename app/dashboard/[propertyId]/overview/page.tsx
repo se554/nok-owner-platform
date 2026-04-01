@@ -7,12 +7,12 @@ interface Props {
   params: Promise<{ propertyId: string }>
 }
 
-function formatCurrency(amount: number | null, currency = 'USD') {
+function fmt(amount: number | null, currency = 'USD') {
   if (amount === null) return '—'
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(amount)
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency, maximumFractionDigits: 0 }).format(amount)
 }
 
-function formatPercent(val: number | null) {
+function fmtPct(val: number | null) {
   if (val === null) return '—'
   return `${val.toFixed(1)}%`
 }
@@ -24,19 +24,17 @@ export default async function OverviewPage({ params }: Props) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const serviceSupabase = createServiceClient()
+  const sb = createServiceClient()
 
-  // Get owner
-  const { data: owner } = await serviceSupabase
+  const { data: owner } = await sb
     .from('owners')
-    .select('id')
+    .select('id, name')
     .eq('supabase_user_id', user.id)
     .single()
 
   if (!owner) redirect('/login')
 
-  // Get property (verify ownership)
-  const { data: property } = await serviceSupabase
+  const { data: property } = await sb
     .from('properties')
     .select('*')
     .eq('id', propertyId)
@@ -45,56 +43,35 @@ export default async function OverviewPage({ params }: Props) {
 
   if (!property) notFound()
 
-  const now = new Date()
-  const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`
+  const now       = new Date()
   const yearStart = `${now.getFullYear()}-01-01`
+  const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`
+  const monthEnd   = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()).padStart(2, '0')}`
 
-  // Load latest metrics + recent cleanings in parallel
-  const [metricsRes, cleaningsRes, upcomingRes, channelRes, checkoutsRes] = await Promise.all([
-    serviceSupabase
-      .from('property_metrics')
-      .select('*')
-      .eq('property_id', propertyId)
-      .order('metric_date', { ascending: false })
-      .limit(1)
-      .single(),
-    serviceSupabase
-      .from('cleaning_records')
-      .select('completed_at, staff_name, status')
-      .eq('property_id', propertyId)
-      .eq('status', 'completed')
-      .order('completed_at', { ascending: false })
-      .limit(1)
-      .single(),
-    serviceSupabase
-      .from('reservations')
-      .select('check_in, check_out, guest_name, channel, nights')
-      .eq('property_id', propertyId)
-      .eq('status', 'confirmed')
+  const [metricsRes, cleaningsRes, upcomingRes, channelRes, checkoutsRes, monthResRes] = await Promise.all([
+    sb.from('property_metrics').select('*').eq('property_id', propertyId)
+      .order('metric_date', { ascending: false }).limit(1).single(),
+    sb.from('cleaning_records').select('completed_at, staff_name, status')
+      .eq('property_id', propertyId).eq('status', 'completed')
+      .order('completed_at', { ascending: false }).limit(1).single(),
+    sb.from('reservations').select('check_in, check_out, guest_name, channel, nights')
+      .eq('property_id', propertyId).eq('status', 'confirmed')
       .gte('check_in', new Date().toISOString().split('T')[0])
-      .order('check_in', { ascending: true })
-      .limit(3),
-    serviceSupabase
-      .from('reservations')
-      .select('channel, owner_revenue, currency')
-      .eq('property_id', propertyId)
-      .neq('status', 'cancelled')
-      .gte('check_in', yearStart),
-    // Checkouts this month (for cleaning cost calculation)
-    serviceSupabase
-      .from('reservations')
-      .select('check_out')
-      .eq('property_id', propertyId)
-      .neq('status', 'cancelled')
-      .gte('check_out', monthStart)
-      .lte('check_out', `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()).padStart(2, '0')}`),
+      .order('check_in', { ascending: true }).limit(3),
+    sb.from('reservations').select('channel, owner_revenue, currency')
+      .eq('property_id', propertyId).neq('status', 'cancelled').gte('check_in', yearStart),
+    sb.from('reservations').select('check_out')
+      .eq('property_id', propertyId).neq('status', 'cancelled')
+      .gte('check_out', monthStart).lte('check_out', monthEnd),
+    sb.from('reservations').select('owner_revenue, currency')
+      .eq('property_id', propertyId).neq('status', 'cancelled').gte('check_in', monthStart),
   ])
 
-  const metrics = metricsRes.data
-  const lastCleaning = cleaningsRes.data
+  const metrics             = metricsRes.data
+  const lastCleaning        = cleaningsRes.data
   const upcomingReservations = upcomingRes.data ?? []
 
-  // Aggregate channel data
+  // Channel breakdown (year to date)
   const channelMap: Record<string, { count: number; revenue: number }> = {}
   for (const r of channelRes.data ?? []) {
     const ch = r.channel ?? 'Otro'
@@ -102,321 +79,409 @@ export default async function OverviewPage({ params }: Props) {
     channelMap[ch].count++
     channelMap[ch].revenue += r.owner_revenue ?? 0
   }
-  const channels = Object.entries(channelMap)
-    .sort((a, b) => b[1].revenue - a[1].revenue)
+  const channels = Object.entries(channelMap).sort((a, b) => b[1].revenue - a[1].revenue)
   const totalRevenue = channels.reduce((s, [, v]) => s + v.revenue, 0)
 
   const CHANNEL_COLORS: Record<string, string> = {
-    Airbnb: 'bg-rose-500',
-    'Booking.com': 'bg-blue-500',
-    Direct: 'bg-green-500',
-    Vrbo: 'bg-purple-500',
+    Airbnb: '#ef4444',
+    'Booking.com': '#3b82f6',
+    Direct: '#0E6845',
+    Vrbo: '#8b5cf6',
   }
 
-  // ── Financial summary for current month ────────────────────────────────────
-  // Revenue this month from reservations with check_in in month
-  const monthRevenue = (channelRes.data ?? [])
-    .filter((r: any) => r.channel !== undefined) // all already filtered to year; refine below
-
-  // Actually pull month revenue from reservations with check_in in current month
-  const { data: monthResData } = await serviceSupabase
-    .from('reservations')
-    .select('owner_revenue, currency')
-    .eq('property_id', propertyId)
-    .neq('status', 'cancelled')
-    .gte('check_in', monthStart)
-
-  const grossRevenue = (monthResData ?? []).reduce((s, r) => s + (r.owner_revenue ?? 0), 0)
-
-  // Commission
-  const commissionRate = (property.nok_commission_rate ?? 0) / 100
-  const commissionAmount = grossRevenue * commissionRate
-
-  // Cleaning cost this month
-  const checkoutsThisMonth = checkoutsRes.data?.length ?? 0
-  let cleaningCostUSD = 0
-  if (property.cleaning_fee && checkoutsThisMonth > 0) {
-    const rawFee = property.cleaning_fee as number
-    if (property.cleaning_fee_currency === 'COP') {
-      cleaningCostUSD = await copToUSD(rawFee * checkoutsThisMonth)
-    } else {
-      cleaningCostUSD = rawFee * checkoutsThisMonth
-    }
+  // Financial summary
+  const grossRevenue   = (monthResRes.data ?? []).reduce((s, r) => s + (r.owner_revenue ?? 0), 0)
+  const commRate       = (property.nok_commission_rate ?? 0) / 100
+  const commAmount     = grossRevenue * commRate
+  const checkouts      = checkoutsRes.data?.length ?? 0
+  let cleaningCostUSD  = 0
+  if (property.cleaning_fee && checkouts > 0) {
+    const raw = property.cleaning_fee as number
+    cleaningCostUSD = property.cleaning_fee_currency === 'COP'
+      ? await copToUSD(raw * checkouts)
+      : raw * checkouts
   }
-
-  const netRevenue = grossRevenue - commissionAmount - cleaningCostUSD
-  const hasFinancialData = property.nok_commission_rate != null || property.cleaning_fee != null
+  const netRevenue         = grossRevenue - commAmount - cleaningCostUSD
+  const hasFinancialData   = property.nok_commission_rate != null || property.cleaning_fee != null
+  const ownerFirstName     = (owner as any).name?.split(' ')[0] ?? 'Propietario'
 
   return (
-    <div className="p-6 max-w-5xl">
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">{property.name}</h1>
-        {property.address && (
-          <p className="text-gray-500 text-sm mt-0.5">{property.address}</p>
-        )}
-      </div>
+    <div style={{ backgroundColor: '#1D1D1B' }}>
 
-      {/* Metrics grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <MetricCard
-          label="Ocupación del mes"
-          value={formatPercent(metrics?.occupancy_rate ?? null)}
-          sub="mes en curso"
+      {/* ── Hero ──────────────────────────────────────────────────── */}
+      <section
+        className="hero-shimmer relative overflow-hidden px-8 lg:px-16 flex flex-col justify-center"
+        style={{ minHeight: '280px', paddingTop: '48px', paddingBottom: '48px' }}
+      >
+        {/* Subtle bottom fade */}
+        <div
+          className="absolute bottom-0 left-0 right-0 h-16 pointer-events-none"
+          style={{ background: 'linear-gradient(to bottom, transparent, #1D1D1B)' }}
         />
-        <MetricCard
-          label="Ingresos del mes"
-          value={formatCurrency(metrics?.revenue_month ?? null, metrics?.revenue_month_currency)}
-          sub="netos propietario"
-        />
-        <MetricCard
-          label="Tarifa promedio"
-          value={metrics?.avg_daily_rate ? formatCurrency(metrics.avg_daily_rate) : '—'}
-          sub="por noche"
-        />
-        <MetricCard
-          label="Noches reservadas"
-          value={metrics?.active_reservations_count ? String(metrics.active_reservations_count) : '—'}
-          sub="reservas activas"
-        />
-      </div>
 
-      {/* Financial breakdown — only shown when Notion data is synced */}
-      {hasFinancialData && (
-        <div className="bg-white rounded-xl border border-gray-200 p-5 mb-6">
-          <h2 className="font-semibold text-gray-900 mb-4">
-            Resumen financiero — {new Date(now.getFullYear(), now.getMonth()).toLocaleDateString('es-DO', { month: 'long', year: 'numeric' })}
-          </h2>
-          <div className="space-y-3">
-            <FinRow
-              label="Ingresos brutos"
-              value={formatCurrency(grossRevenue)}
-              valueClass="text-gray-900 font-semibold"
+        <div className="relative z-10">
+          <p
+            className="text-xs uppercase tracking-[0.2em] mb-4 fade-up"
+            style={{ color: 'rgba(185,181,220,0.7)' }}
+          >
+            Portal de Propietarios
+          </p>
+          <h1
+            className="font-serif text-5xl lg:text-6xl font-light text-[#F2F2F2] mb-3 fade-up-delay-1"
+          >
+            Bienvenido, {ownerFirstName}
+          </h1>
+          <p
+            className="text-base mb-10 fade-up-delay-1"
+            style={{ color: 'rgba(242,242,242,0.45)' }}
+          >
+            Aquí está el rendimiento de {property.name} este mes
+          </p>
+
+          {/* Stat pills */}
+          <div className="flex flex-wrap gap-3 fade-up-delay-2">
+            <StatPill
+              label="Ingresos del mes"
+              value={metrics?.revenue_month ? fmt(metrics.revenue_month) : fmt(grossRevenue)}
             />
-            {property.nok_commission_rate != null && (
-              <FinRow
-                label={`Comisión NOK (${property.nok_commission_rate}%)`}
-                value={`− ${formatCurrency(commissionAmount)}`}
-                valueClass="text-red-500"
-              />
+            <StatPill
+              label="Ocupación"
+              value={fmtPct(metrics?.occupancy_rate ?? null)}
+            />
+            <StatPill
+              label="Reservas activas"
+              value={String(metrics?.active_reservations_count ?? upcomingReservations.length)}
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* ── Content ───────────────────────────────────────────────── */}
+      <div className="px-8 lg:px-16 py-10 max-w-6xl space-y-6">
+
+        {/* Metrics row */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <MetricCard label="Ocupación del mes" value={fmtPct(metrics?.occupancy_rate ?? null)} sub="mes en curso" />
+          <MetricCard label="Ingresos del mes" value={metrics?.revenue_month ? fmt(metrics.revenue_month) : '—'} sub="netos propietario" />
+          <MetricCard label="Tarifa promedio" value={metrics?.avg_daily_rate ? fmt(metrics.avg_daily_rate) : '—'} sub="por noche" />
+          <MetricCard label="Noches reservadas" value={metrics?.active_reservations_count ? String(metrics.active_reservations_count) : '—'} sub="reservas activas" />
+        </div>
+
+        {/* Financial summary */}
+        {hasFinancialData && (
+          <div
+            className="rounded-2xl p-6 nok-card"
+          >
+            <h2
+              className="font-serif text-2xl font-light text-[#F2F2F2] mb-6"
+            >
+              Resumen financiero —{' '}
+              {new Date(now.getFullYear(), now.getMonth()).toLocaleDateString('es-DO', { month: 'long', year: 'numeric' })}
+            </h2>
+            <div className="space-y-4">
+              <FinRow label="Ingresos brutos" value={fmt(grossRevenue)} accent={false} />
+              {property.nok_commission_rate != null && (
+                <FinRow
+                  label={`Comisión NOK (${property.nok_commission_rate}%)`}
+                  value={`− ${fmt(commAmount)}`}
+                  deduct
+                />
+              )}
+              {property.cleaning_fee != null && (
+                <FinRow
+                  label={`Limpieza (${checkouts} checkout${checkouts !== 1 ? 's' : ''})`}
+                  value={`− ${fmt(cleaningCostUSD)}`}
+                  deduct
+                />
+              )}
+              <div
+                className="pt-4 mt-1"
+                style={{ borderTop: '1px solid rgba(242,242,242,0.07)' }}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-[#F2F2F2] font-medium">Ingreso neto propietario</span>
+                  <span className="text-xl font-semibold" style={{ color: '#4ade80' }}>{fmt(netRevenue)}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Reviews */}
+        {(metrics?.review_score_airbnb || metrics?.review_score_booking) && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {metrics?.review_score_airbnb && (
+              <ReviewCard platform="Airbnb" score={metrics.review_score_airbnb} count={metrics.review_count_airbnb} color="#ef4444" />
             )}
-            {property.cleaning_fee != null && (
-              <FinRow
-                label={`Limpieza (${checkoutsThisMonth} checkout${checkoutsThisMonth !== 1 ? 's' : ''})`}
-                value={`− ${formatCurrency(cleaningCostUSD)}`}
-                valueClass="text-red-500"
-              />
+            {metrics?.review_score_booking && (
+              <ReviewCard platform="Booking.com" score={metrics.review_score_booking} count={metrics.review_count_booking} color="#3b82f6" />
             )}
-            <div className="border-t border-gray-100 pt-3">
-              <FinRow
-                label="Ingreso neto propietario"
-                value={formatCurrency(netRevenue)}
-                valueClass="text-green-700 font-bold text-base"
-                labelClass="font-semibold text-gray-800"
+          </div>
+        )}
+
+        {/* Channel breakdown */}
+        {channels.length > 0 && (
+          <div className="rounded-2xl p-6 nok-card">
+            <h2 className="font-serif text-2xl font-light text-[#F2F2F2] mb-6">
+              Origen de reservas — {now.getFullYear()}
+            </h2>
+            <div className="space-y-4">
+              {channels.map(([channel, data]) => {
+                const pct   = totalRevenue > 0 ? (data.revenue / totalRevenue) * 100 : 0
+                const color = CHANNEL_COLORS[channel] ?? '#6b7280'
+                return (
+                  <div key={channel}>
+                    <div className="flex items-center justify-between text-sm mb-2">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
+                        <span className="font-medium text-[#F2F2F2]">{channel}</span>
+                      </div>
+                      <span style={{ color: 'rgba(242,242,242,0.45)' }}>
+                        {data.count} reservas · {fmt(data.revenue)}
+                      </span>
+                    </div>
+                    <div
+                      className="h-1.5 rounded-full overflow-hidden"
+                      style={{ backgroundColor: 'rgba(242,242,242,0.06)' }}
+                    >
+                      <div
+                        className="h-full rounded-full transition-all duration-700"
+                        style={{ width: `${pct.toFixed(1)}%`, backgroundColor: color, opacity: 0.8 }}
+                      />
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Upcoming + Operations row */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* Upcoming reservations */}
+          <div className="rounded-2xl p-6 nok-card">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="font-serif text-2xl font-light text-[#F2F2F2]">Próximas reservas</h2>
+              <Link
+                href={`/dashboard/${propertyId}/reservations`}
+                className="text-xs transition-colors duration-200"
+                style={{ color: '#B9B5DC' }}
+                onMouseEnter={undefined}
+              >
+                Ver todas →
+              </Link>
+            </div>
+            {upcomingReservations.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-8">
+                <div
+                  className="w-10 h-10 rounded-full flex items-center justify-center mb-3"
+                  style={{ backgroundColor: 'rgba(77,67,158,0.1)' }}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(185,181,220,0.5)" strokeWidth="1.5">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                    <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
+                    <line x1="3" y1="10" x2="21" y2="10"/>
+                  </svg>
+                </div>
+                <p className="text-sm" style={{ color: 'rgba(242,242,242,0.3)' }}>No hay reservas próximas</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {upcomingReservations.map((r, i) => (
+                  <div
+                    key={i}
+                    className="flex items-center justify-between py-3 first:pt-0"
+                    style={{ borderBottom: i < upcomingReservations.length - 1 ? '1px solid rgba(242,242,242,0.05)' : 'none' }}
+                  >
+                    <div>
+                      <p className="text-sm font-medium text-[#F2F2F2]">{r.guest_name ?? 'Huésped'}</p>
+                      <p className="text-xs mt-0.5" style={{ color: 'rgba(242,242,242,0.4)' }}>
+                        {new Date(r.check_in).toLocaleDateString('es-DO', { month: 'short', day: 'numeric' })}
+                        {' — '}
+                        {new Date(r.check_out).toLocaleDateString('es-DO', { month: 'short', day: 'numeric' })}
+                        {r.nights ? ` · ${r.nights} noches` : ''}
+                      </p>
+                    </div>
+                    {r.channel && (
+                      <span
+                        className="text-xs px-2.5 py-1 rounded-full font-medium"
+                        style={{
+                          backgroundColor: `${CHANNEL_COLORS[r.channel] ?? '#6b7280'}18`,
+                          color: CHANNEL_COLORS[r.channel] ?? 'rgba(242,242,242,0.5)',
+                          border: `1px solid ${CHANNEL_COLORS[r.channel] ?? '#6b7280'}35`,
+                        }}
+                      >
+                        {r.channel}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Operations */}
+          <div className="rounded-2xl p-6 nok-card">
+            <h2 className="font-serif text-2xl font-light text-[#F2F2F2] mb-6">Estado operativo</h2>
+            <div className="space-y-4">
+              <OpRow
+                label="Última limpieza"
+                value={lastCleaning?.completed_at
+                  ? new Date(lastCleaning.completed_at).toLocaleDateString('es-DO', { month: 'short', day: 'numeric' })
+                  : 'Sin datos'}
               />
+              {lastCleaning?.staff_name && (
+                <OpRow label="Limpiadora" value={lastCleaning.staff_name} />
+              )}
+              <OpRow
+                label="Reservas activas"
+                value={String(metrics?.active_reservations_count ?? '—')}
+              />
+              {property.nok_commission_rate != null && (
+                <OpRow label="Comisión NOK" value={`${property.nok_commission_rate}%`} />
+              )}
+              {property.country && (
+                <OpRow label="Mercado" value={property.country} />
+              )}
             </div>
           </div>
         </div>
-      )}
 
-      {/* Reviews row */}
-      {(metrics?.review_score_airbnb || metrics?.review_score_booking) && (
-        <div className="grid grid-cols-2 gap-4 mb-6">
-          {metrics.review_score_airbnb && (
-            <ReviewCard
-              platform="Airbnb"
-              score={metrics.review_score_airbnb}
-              count={metrics.review_count_airbnb}
-            />
-          )}
-          {metrics.review_score_booking && (
-            <ReviewCard
-              platform="Booking.com"
-              score={metrics.review_score_booking}
-              count={metrics.review_count_booking}
-            />
-          )}
-        </div>
-      )}
-
-      {/* Channel breakdown */}
-      {channels.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-200 p-5 mb-6">
-          <h2 className="font-semibold text-gray-900 mb-4">Origen de reservas — {now.getFullYear()}</h2>
-          <div className="space-y-3">
-            {channels.map(([channel, data]) => {
-              const pct = totalRevenue > 0 ? (data.revenue / totalRevenue) * 100 : 0
-              const color = CHANNEL_COLORS[channel] ?? 'bg-gray-400'
-              return (
-                <div key={channel}>
-                  <div className="flex items-center justify-between text-sm mb-1">
-                    <span className="font-medium text-gray-700">{channel}</span>
-                    <span className="text-gray-500">
-                      {data.count} reservas · {formatCurrency(data.revenue)}
-                    </span>
-                  </div>
-                  <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full rounded-full ${color}`}
-                      style={{ width: `${pct.toFixed(1)}%` }}
-                    />
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      )}
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-        {/* Upcoming reservations */}
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-semibold text-gray-900">Próximas reservas</h2>
-            <Link
-              href={`/dashboard/${propertyId}/reservations`}
-              className="text-xs text-gray-500 hover:text-gray-800"
-            >
-              Ver todas →
-            </Link>
-          </div>
-          {upcomingReservations.length === 0 ? (
-            <p className="text-sm text-gray-400">No hay reservas próximas.</p>
-          ) : (
-            <div className="space-y-3">
-              {upcomingReservations.map((r, i) => (
-                <div key={i} className="flex items-center justify-between text-sm">
-                  <div>
-                    <p className="font-medium text-gray-900">{r.guest_name ?? 'Huésped'}</p>
-                    <p className="text-gray-400 text-xs">
-                      {new Date(r.check_in).toLocaleDateString('es-DO', { month: 'short', day: 'numeric' })}
-                      {' → '}
-                      {new Date(r.check_out).toLocaleDateString('es-DO', { month: 'short', day: 'numeric' })}
-                      {r.nights ? ` · ${r.nights} noches` : ''}
-                    </p>
-                  </div>
-                  {r.channel && (
-                    <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
-                      {r.channel}
-                    </span>
-                  )}
-                </div>
+        {/* NOK AI banner */}
+        <div className="ai-banner-shimmer rounded-2xl p-7 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5">
+          <div>
+            <div className="flex items-center gap-2.5 mb-2">
+              <div
+                className="w-7 h-7 rounded-lg flex items-center justify-center"
+                style={{ backgroundColor: 'rgba(255,255,255,0.12)' }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                </svg>
+              </div>
+              <h3 className="font-semibold text-white text-sm">NOK AI está optimizando tus propiedades</h3>
+            </div>
+            <p className="text-sm mb-4" style={{ color: 'rgba(255,255,255,0.6)' }}>
+              Precios dinámicos, respuestas automáticas y reportes inteligentes activos en tiempo real
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {['Precio dinámico ✓', 'Auto-respuestas ✓', 'Reportes AI ✓'].map(badge => (
+                <span
+                  key={badge}
+                  className="text-xs px-3 py-1 rounded-full font-medium"
+                  style={{ backgroundColor: 'rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.85)' }}
+                >
+                  {badge}
+                </span>
               ))}
             </div>
-          )}
-        </div>
-
-        {/* Operations quick status */}
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <h2 className="font-semibold text-gray-900 mb-4">Estado operativo</h2>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-600">Última limpieza</span>
-              <span className="text-gray-900 font-medium">
-                {lastCleaning?.completed_at
-                  ? new Date(lastCleaning.completed_at).toLocaleDateString('es-DO', {
-                      month: 'short', day: 'numeric'
-                    })
-                  : 'Sin datos'}
-              </span>
-            </div>
-            {lastCleaning?.staff_name && (
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-600">Limpiadora</span>
-                <span className="text-gray-900">{lastCleaning.staff_name}</span>
-              </div>
-            )}
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-600">Reservas activas</span>
-              <span className="text-gray-900 font-medium">
-                {metrics?.active_reservations_count ?? '—'}
-              </span>
-            </div>
-            {property.nok_commission_rate != null && (
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-600">Comisión NOK</span>
-                <span className="text-gray-900">{property.nok_commission_rate}%</span>
-              </div>
-            )}
           </div>
+          <Link
+            href={`/dashboard/${propertyId}/chat`}
+            className="shrink-0 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 whitespace-nowrap"
+            style={{
+              backgroundColor: 'rgba(255,255,255,0.95)',
+              color: '#4D439E',
+              boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
+            }}
+          >
+            Abrir NOK AI →
+          </Link>
         </div>
-      </div>
 
-      {/* Chat CTA */}
-      <div className="bg-gradient-to-r from-gray-900 to-gray-800 rounded-xl p-5 flex items-center justify-between">
-        <div>
-          <h3 className="text-white font-semibold">¿Tienes alguna pregunta?</h3>
-          <p className="text-gray-400 text-sm mt-0.5">
-            Pregúntale a la IA sobre precios, reservas, reseñas o el estado de tu propiedad.
-          </p>
-        </div>
-        <Link
-          href={`/dashboard/${propertyId}/chat`}
-          className="shrink-0 ml-4 bg-white text-gray-900 font-medium text-sm px-4 py-2 rounded-lg hover:bg-gray-100 transition"
+        {/* Footer */}
+        <div
+          className="flex items-center justify-between py-6 text-xs"
+          style={{
+            borderTop: '1px solid rgba(242,242,242,0.06)',
+            color: 'rgba(242,242,242,0.2)',
+          }}
         >
-          Abrir chat →
-        </Link>
+          <span className="font-serif text-sm tracking-[0.2em]">NOK</span>
+          <span>Curated stays designed to flow with you · <a href="https://nok.rent" target="_blank" rel="noopener" className="hover:text-[#B9B5DC] transition-colors">nok.rent</a></span>
+        </div>
       </div>
     </div>
   )
 }
 
-function FinRow({
-  label,
-  value,
-  valueClass = 'text-gray-900',
-  labelClass = 'text-gray-600',
-}: {
+// ── Sub-components ────────────────────────────────────────────
+
+function StatPill({ label, value }: { label: string; value: string }) {
+  return (
+    <div
+      className="flex items-center gap-4 px-5 py-3 rounded-xl"
+      style={{
+        backgroundColor: 'rgba(20,20,19,0.7)',
+        border: '1px solid rgba(77,67,158,0.3)',
+        borderLeft: '3px solid #4D439E',
+        backdropFilter: 'blur(8px)',
+      }}
+    >
+      <div>
+        <p className="text-xl font-semibold text-[#F2F2F2] leading-none">{value}</p>
+        <p className="text-xs mt-1" style={{ color: 'rgba(242,242,242,0.45)' }}>{label}</p>
+      </div>
+    </div>
+  )
+}
+
+function MetricCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
+  return (
+    <div
+      className="rounded-2xl p-5 nok-card"
+    >
+      <p className="text-xs uppercase tracking-widest mb-3" style={{ color: 'rgba(242,242,242,0.35)' }}>{label}</p>
+      <p className="font-serif text-4xl font-light text-[#F2F2F2] leading-none">{value}</p>
+      {sub && <p className="text-xs mt-2" style={{ color: 'rgba(242,242,242,0.3)' }}>{sub}</p>}
+    </div>
+  )
+}
+
+function FinRow({ label, value, deduct = false, accent = false }: {
   label: string
   value: string
-  valueClass?: string
-  labelClass?: string
+  deduct?: boolean
+  accent?: boolean
 }) {
   return (
     <div className="flex items-center justify-between text-sm">
-      <span className={labelClass}>{label}</span>
-      <span className={valueClass}>{value}</span>
+      <span style={{ color: 'rgba(242,242,242,0.55)' }}>{label}</span>
+      <span style={{ color: deduct ? 'rgba(242,100,100,0.85)' : accent ? '#4ade80' : '#F2F2F2' }}>
+        {value}
+      </span>
     </div>
   )
 }
 
-function MetricCard({
-  label,
-  value,
-  sub,
-  highlight = false,
-}: {
-  label: string
-  value: string
-  sub?: string
-  highlight?: boolean
+function ReviewCard({ platform, score, count, color }: {
+  platform: string; score: number; count: number | null; color: string
 }) {
   return (
-    <div className={`bg-white rounded-xl border p-4 ${highlight ? 'border-amber-300 bg-amber-50' : 'border-gray-200'}`}>
-      <p className="text-xs text-gray-500 font-medium mb-1">{label}</p>
-      <p className="text-2xl font-bold text-gray-900">{value}</p>
-      {sub && <p className="text-xs text-gray-400 mt-0.5">{sub}</p>}
-    </div>
-  )
-}
-
-function ReviewCard({
-  platform,
-  score,
-  count,
-}: {
-  platform: string
-  score: number
-  count: number | null
-}) {
-  return (
-    <div className="bg-white rounded-xl border border-gray-200 p-4 flex items-center gap-4">
-      <div className="text-3xl">⭐</div>
-      <div>
-        <p className="text-xs text-gray-500 font-medium">{platform}</p>
-        <p className="text-2xl font-bold text-gray-900">{score.toFixed(2)}</p>
-        {count && <p className="text-xs text-gray-400">{count} reseñas</p>}
+    <div className="rounded-2xl p-5 nok-card flex items-center gap-5">
+      <div
+        className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 text-xl"
+        style={{ backgroundColor: `${color}15`, border: `1px solid ${color}30` }}
+      >
+        ⭐
       </div>
+      <div>
+        <p className="text-xs uppercase tracking-widest mb-1" style={{ color: 'rgba(242,242,242,0.35)' }}>{platform}</p>
+        <p className="font-serif text-3xl font-light text-[#F2F2F2]">{score.toFixed(2)}</p>
+        {count && <p className="text-xs mt-0.5" style={{ color: 'rgba(242,242,242,0.3)' }}>{count} reseñas</p>}
+      </div>
+    </div>
+  )
+}
+
+function OpRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div
+      className="flex items-center justify-between py-3 text-sm"
+      style={{ borderBottom: '1px solid rgba(242,242,242,0.04)' }}
+    >
+      <span style={{ color: 'rgba(242,242,242,0.45)' }}>{label}</span>
+      <span className="font-medium text-[#F2F2F2]">{value}</span>
     </div>
   )
 }

@@ -1,25 +1,121 @@
 @import "tailwindcss";
 
-/* NOK Brand Tokens */
+/* ─── NOK Brand Tokens ───────────────────────────────────────── */
 :root {
-  --nok-blue:       #0080C6;
-  --nok-blue-dark:  #0068A3;
-  --nok-blue-light: #E6F3FB;
-  --nok-black:      #1D1D1B;
-  --nok-white:      #F2F2F2;
-  --nok-gray-50:    #F7F7F7;
-  --nok-gray-100:   #EFEFEF;
-  --nok-gray-300:   #C8C8C8;
-  --nok-gray-500:   #8A8A8A;
-  --nok-gray-700:   #4A4A4A;
-
-  --background: #ffffff;
-  --foreground: #1D1D1B;
+  --nok-bg:            #1D1D1B;
+  --nok-surface:       #141413;
+  --nok-surface-el:    #1E1E1C;
+  --nok-surface-hover: #252523;
+  --nok-text:          #F2F2F2;
+  --nok-text-muted:    rgba(242, 242, 242, 0.45);
+  --nok-text-subtle:   rgba(242, 242, 242, 0.22);
+  --nok-accent:        #4D439E;
+  --nok-accent-hover:  #5d52b0;
+  --nok-gold:          #D6A700;
+  --nok-serenity:      #B9B5DC;
+  --nok-success:       #0E6845;
+  --nok-danger:        #F20022;
+  --nok-border:        rgba(242, 242, 242, 0.07);
+  --nok-border-accent: rgba(77, 67, 158, 0.35);
 }
 
+/* ─── Base ───────────────────────────────────────────────────── */
+html { scroll-behavior: smooth; }
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+  background-color: var(--nok-bg);
+  color: var(--nok-text);
+  font-family: var(--font-inter, 'Inter', 'Helvetica Neue', Arial, sans-serif);
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ─── Typography helpers ─────────────────────────────────────── */
+.font-serif {
+  font-family: var(--font-cormorant, 'Georgia', serif);
+}
+
+/* ─── Animations ─────────────────────────────────────────────── */
+@keyframes shimmer-purple {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.75; }
+}
+
+@keyframes border-glow {
+  0%, 100% { border-color: rgba(77, 67, 158, 0.35); }
+  50%       { border-color: rgba(77, 67, 158, 0.7); }
+}
+
+.hero-shimmer {
+  background: linear-gradient(
+    135deg,
+    #1D1D1B 0%,
+    #1c1a38 25%,
+    #251f4a 45%,
+    #1c1a38 65%,
+    #1D1D1B 100%
+  );
+  background-size: 400% 400%;
+  animation: shimmer-purple 10s ease infinite;
+}
+
+.ai-banner-shimmer {
+  background: linear-gradient(
+    135deg,
+    #4D439E 0%,
+    #3a3180 35%,
+    #28205e 60%,
+    #1D1D1B 100%
+  );
+  background-size: 300% 300%;
+  animation: shimmer-purple 7s ease infinite;
+}
+
+.fade-up { animation: fade-up 0.5s ease forwards; }
+.fade-up-delay-1 { animation: fade-up 0.5s 0.1s ease both; }
+.fade-up-delay-2 { animation: fade-up 0.5s 0.2s ease both; }
+.fade-up-delay-3 { animation: fade-up 0.5s 0.3s ease both; }
+
+/* ─── Scrollbar ──────────────────────────────────────────────── */
+::-webkit-scrollbar         { width: 5px; height: 5px; }
+::-webkit-scrollbar-track   { background: var(--nok-surface); }
+::-webkit-scrollbar-thumb   { background: rgba(77,67,158,0.4); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(77,67,158,0.65); }
+
+/* ─── Nok card hover ─────────────────────────────────────────── */
+.nok-card {
+  background-color: var(--nok-surface);
+  border: 1px solid var(--nok-border);
+  transition: border-color 0.35s ease, box-shadow 0.35s ease;
+}
+
+.nok-card:hover {
+  border-color: rgba(77, 67, 158, 0.4);
+  box-shadow: 0 0 0 1px rgba(77,67,158,0.2), 0 8px 32px rgba(0,0,0,0.35);
+}
+
+/* ─── Property card ──────────────────────────────────────────── */
+.property-card .property-img {
+  transition: transform 0.5s ease;
+}
+.property-card:hover .property-img {
+  transform: scale(1.03);
+}
+.property-card {
+  transition: border-color 0.35s ease, box-shadow 0.35s ease;
+}
+.property-card:hover {
+  border-color: rgba(77,67,158,0.5) !important;
+  box-shadow: 0 0 0 1px rgba(77,67,158,0.25), 0 16px 48px rgba(0,0,0,0.4);
 }
