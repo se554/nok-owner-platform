@@ -35,7 +35,7 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="flex justify-center mb-8">
-          <Image src="/brand/nok-logo.svg" alt="NOK" width={100} height={32} priority />
+          <Image src="/brand/nok-logo-dark.png" alt="NOK" width={130} height={35} priority />
         </div>
 
         {/* Card */}

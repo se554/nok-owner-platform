@@ -60,7 +60,7 @@ export default function OnboardingStartPage() {
     <div className="min-h-screen bg-white">
       {/* Header */}
       <header className="border-b border-[#EFEFEF] px-6 py-4">
-        <Image src="/brand/nok-logo.svg" alt="NOK" width={80} height={26} priority />
+        <Image src="/brand/nok-logo-dark.png" alt="NOK" width={120} height={32} priority />
       </header>
 
       <div className="max-w-xl mx-auto px-6 py-12">

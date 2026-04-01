@@ -135,7 +135,7 @@ export default function OnboardingChatPage() {
     <div className="min-h-screen bg-white flex flex-col">
       {/* Header */}
       <header className="border-b border-[#EFEFEF] px-6 py-4 flex items-center justify-between flex-shrink-0">
-        <Image src="/brand/nok-logo.svg" alt="NOK" width={72} height={23} priority />
+        <Image src="/brand/nok-logo-dark.png" alt="NOK" width={110} height={30} priority />
 
         {/* Step indicator */}
         <div className="flex items-center gap-1.5 text-xs">
