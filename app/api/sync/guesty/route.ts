@@ -91,7 +91,10 @@ export async function POST(req: Request) {
     })
 
     // Filter to only this listing's reservations (Guesty API filter not always reliable)
-    const filtered = reservations.filter(r => r.listingId === guestyListingId)
+    const firstR = reservations[0] as any
+    const listingField = firstR?.listingId ? 'listingId' : firstR?.listing_id ? 'listing_id' : 'listingId'
+    const filtered = reservations.filter((r: any) => (r[listingField] ?? r.listingId) === guestyListingId)
+    results.errors.push(`DEBUG: ${reservations.length} total, ${filtered.length} for listing ${guestyListingId}, field=${listingField}, sample=${firstR?.[listingField]}`)
     for (const r of filtered) {
       const row = {
         property_id: propertyId,
