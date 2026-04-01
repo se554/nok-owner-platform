@@ -1,9 +1,11 @@
 import { createClient } from '@supabase/supabase-js'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+function getSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+}
 
 export type NokStandard = {
   id: string
@@ -42,7 +44,7 @@ export type CatalogItem = {
  * Returns them grouped by space_type for easy use in AI system prompts.
  */
 export async function getNokStandards(market: 'DO' | 'CO' = 'DO') {
-  const { data, error } = await supabase
+  const { data, error } = await getSupabase()
     .from('nok_standards')
     .select('*')
     .or(`market.eq.all,market.eq.${market}`)
@@ -107,7 +109,7 @@ export async function getCatalogItems(
   country: 'DO' | 'CO',
   filters?: { category?: string; space_type?: string }
 ) {
-  let query = supabase
+  let query = getSupabase()
     .from('catalog_items')
     .select('*')
     .eq('country', country)
@@ -130,7 +132,7 @@ export async function findCatalogItemsForStandard(
   itemName: string,
   country: 'DO' | 'CO'
 ): Promise<CatalogItem[]> {
-  const { data, error } = await supabase
+  const { data, error } = await getSupabase()
     .from('catalog_items')
     .select('*')
     .eq('country', country)
