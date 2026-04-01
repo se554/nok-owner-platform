@@ -10,7 +10,7 @@ function Stars({ score }: { score: number }) {
   const full = Math.floor(score)
   const half = score - full >= 0.5
   return (
-    <span className="text-amber-400 text-sm">
+    <span className="text-sm" style={{ color: '#D6A700' }}>
       {'★'.repeat(full)}
       {half ? '½' : ''}
       {'☆'.repeat(5 - full - (half ? 1 : 0))}
@@ -21,15 +21,15 @@ function Stars({ score }: { score: number }) {
 function ScoreBar({ label, value }: { label: string; value: number | null }) {
   if (!value) return null
   return (
-    <div className="flex items-center gap-2 text-xs">
-      <span className="text-gray-500 w-28 shrink-0">{label}</span>
-      <div className="flex-1 bg-gray-100 rounded-full h-1.5">
+    <div className="flex items-center gap-3 text-xs">
+      <span className="w-28 shrink-0" style={{ color: 'rgba(242,242,242,0.45)' }}>{label}</span>
+      <div className="flex-1 h-1.5 rounded-full" style={{ backgroundColor: 'rgba(242,242,242,0.06)' }}>
         <div
-          className="bg-amber-400 h-1.5 rounded-full"
-          style={{ width: `${(value / 5) * 100}%` }}
+          className="h-1.5 rounded-full"
+          style={{ width: `${(value / 5) * 100}%`, backgroundColor: '#D6A700' }}
         />
       </div>
-      <span className="text-gray-700 font-medium w-8 text-right">{value.toFixed(1)}</span>
+      <span className="font-medium w-8 text-right text-[#F2F2F2]">{value.toFixed(1)}</span>
     </div>
   )
 }
@@ -41,59 +41,55 @@ export default async function ReviewsPage({ params }: Props) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const serviceSupabase = createServiceClient()
+  const sb = createServiceClient()
 
-  const { data: owner } = await serviceSupabase
-    .from('owners')
-    .select('id')
-    .eq('supabase_user_id', user.id)
-    .single()
-
+  const { data: owner } = await sb.from('owners').select('id').eq('supabase_user_id', user.id).single()
   if (!owner) redirect('/login')
 
-  const { data: property } = await serviceSupabase
-    .from('properties')
-    .select('id, name')
-    .eq('id', propertyId)
-    .eq('owner_id', owner.id)
-    .single()
-
+  const { data: property } = await sb.from('properties').select('id, name').eq('id', propertyId).eq('owner_id', owner.id).single()
   if (!property) notFound()
 
-  const { data: reviews } = await serviceSupabase
+  const { data: reviews } = await sb
     .from('reviews')
     .select('*')
     .eq('property_id', propertyId)
     .order('submitted_at', { ascending: false })
     .limit(30)
 
-  // Compute aggregate stats
   const allReviews = reviews ?? []
   const avgOverall = allReviews.length
     ? allReviews.reduce((s, r) => s + (r.overall_score ?? 0), 0) / allReviews.length
     : null
 
   return (
-    <div className="p-6 max-w-3xl">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Reseñas</h1>
+    <div className="px-8 lg:px-16 py-10 max-w-4xl">
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h1 className="font-serif text-4xl font-light text-[#F2F2F2]">Reseñas</h1>
+          <p className="text-sm mt-1" style={{ color: 'rgba(242,242,242,0.4)' }}>{property.name}</p>
+        </div>
         <Link
           href={`/dashboard/${propertyId}/chat`}
-          className="text-sm text-gray-500 hover:text-gray-800 border border-dashed border-gray-300 px-3 py-1.5 rounded-lg transition"
+          className="text-sm px-4 py-2 rounded-xl transition-all duration-200"
+          style={{
+            color: '#B9B5DC',
+            border: '1px solid rgba(77,67,158,0.3)',
+            backgroundColor: 'rgba(77,67,158,0.08)',
+          }}
         >
-          Pregúntale a la IA ✦
+          Pregúntale a NOK AI
         </Link>
       </div>
 
       {/* Summary card */}
       {avgOverall && (
-        <div className="bg-white rounded-xl border border-gray-200 p-5 mb-6 flex items-center gap-6">
+        <div className="rounded-2xl p-6 mb-6 nok-card flex items-center gap-8">
           <div className="text-center">
-            <p className="text-5xl font-bold text-gray-900">{avgOverall.toFixed(2)}</p>
+            <p className="font-serif text-6xl font-light text-[#F2F2F2]">{avgOverall.toFixed(2)}</p>
             <Stars score={avgOverall} />
-            <p className="text-xs text-gray-400 mt-1">{allReviews.length} reseñas</p>
+            <p className="text-xs mt-2" style={{ color: 'rgba(242,242,242,0.3)' }}>{allReviews.length} reseñas</p>
           </div>
-          <div className="flex-1 space-y-2">
+          <div className="flex-1 space-y-2.5">
             <ScoreBar label="Limpieza" value={avgScore(allReviews, 'cleanliness_score')} />
             <ScoreBar label="Comunicación" value={avgScore(allReviews, 'communication_score')} />
             <ScoreBar label="Check-in" value={avgScore(allReviews, 'checkin_score')} />
@@ -106,26 +102,41 @@ export default async function ReviewsPage({ params }: Props) {
 
       {/* Reviews list */}
       {allReviews.length === 0 ? (
-        <div className="bg-white border border-gray-200 rounded-xl p-8 text-center text-gray-400 text-sm">
-          No hay reseñas sincronizadas todavía.
+        <div
+          className="rounded-2xl p-10 text-center nok-card"
+        >
+          <div
+            className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4"
+            style={{ backgroundColor: 'rgba(77,67,158,0.1)' }}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(185,181,220,0.5)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+            </svg>
+          </div>
+          <p className="text-sm mb-2" style={{ color: 'rgba(242,242,242,0.4)' }}>
+            No hay reseñas sincronizadas todavía.
+          </p>
+          <p className="text-xs" style={{ color: 'rgba(242,242,242,0.25)' }}>
+            Sincroniza desde el calendario para importar reseñas de Guesty.
+          </p>
         </div>
       ) : (
         <div className="space-y-3">
           {allReviews.map(review => (
-            <div key={review.id} className="bg-white rounded-xl border border-gray-200 p-5">
-              <div className="flex items-start justify-between mb-2">
+            <div key={review.id} className="rounded-2xl p-5 nok-card">
+              <div className="flex items-start justify-between mb-3">
                 <div>
-                  <p className="font-medium text-gray-900 text-sm">{review.guest_name ?? 'Huésped'}</p>
-                  <p className="text-xs text-gray-400">
+                  <p className="font-medium text-[#F2F2F2] text-sm">{review.guest_name ?? 'Huésped'}</p>
+                  <p className="text-xs mt-0.5" style={{ color: 'rgba(242,242,242,0.35)' }}>
                     {review.submitted_at
                       ? new Date(review.submitted_at).toLocaleDateString('es-DO', { month: 'long', day: 'numeric', year: 'numeric' })
                       : ''}
                     {review.channel && ` · ${review.channel}`}
                   </p>
                 </div>
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-2">
                   {review.overall_score && (
-                    <span className="text-sm font-semibold text-gray-900">
+                    <span className="text-sm font-semibold text-[#F2F2F2]">
                       {(review.overall_score as number).toFixed(1)}
                     </span>
                   )}
@@ -134,13 +145,20 @@ export default async function ReviewsPage({ params }: Props) {
               </div>
 
               {review.reviewer_text && (
-                <p className="text-sm text-gray-700 leading-relaxed">{review.reviewer_text as string}</p>
+                <p className="text-sm leading-relaxed" style={{ color: 'rgba(242,242,242,0.7)' }}>
+                  {review.reviewer_text as string}
+                </p>
               )}
 
               {review.host_response && (
-                <div className="mt-3 pl-3 border-l-2 border-gray-200">
-                  <p className="text-xs text-gray-400 mb-1">Respuesta de NOK</p>
-                  <p className="text-xs text-gray-600">{review.host_response as string}</p>
+                <div
+                  className="mt-4 pl-4 py-2"
+                  style={{ borderLeft: '2px solid rgba(77,67,158,0.4)' }}
+                >
+                  <p className="text-xs mb-1" style={{ color: '#B9B5DC' }}>Respuesta de NOK</p>
+                  <p className="text-xs" style={{ color: 'rgba(242,242,242,0.55)' }}>
+                    {review.host_response as string}
+                  </p>
                 </div>
               )}
             </div>

@@ -41,7 +41,8 @@ export default async function CalendarPage({ params, searchParams }: Props) {
       .select('id, check_in, check_out, nights, guest_name, channel, status, num_guests, owner_revenue, currency, total_price')
       .eq('property_id', propertyId)
       .neq('status', 'cancelled')
-      .or(`check_in.lte.${to},check_out.gte.${from}`)
+      .lte('check_in', to)
+      .gte('check_out', from)
       .order('check_in'),
     sb.from('pricing_calendar')
       .select('calendar_date, base_rate, recommended_rate, is_available, is_blocked, block_reason, min_stay_nights, currency')
@@ -52,11 +53,11 @@ export default async function CalendarPage({ params, searchParams }: Props) {
   ])
 
   return (
-    <div className="p-6 max-w-5xl">
-      <div className="flex items-center justify-between mb-6">
+    <div className="px-8 lg:px-16 py-10 max-w-6xl">
+      <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Calendario</h1>
-          <p className="text-sm text-gray-400 mt-0.5">{property.name}</p>
+          <h1 className="font-serif text-4xl font-light text-[#F2F2F2]">Calendario</h1>
+          <p className="text-sm mt-1" style={{ color: 'rgba(242,242,242,0.4)' }}>{property.name}</p>
         </div>
         <SyncButton propertyId={propertyId} />
       </div>

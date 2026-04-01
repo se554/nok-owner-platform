@@ -17,7 +17,6 @@ export default function SyncButton({ propertyId }: { propertyId: string }) {
       const errors = data.synced?.errors?.length ? ` | Errores: ${data.synced.errors.join(', ')}` : ''
       setMsg((data.message ?? data.error ?? 'Sincronizado') + errors)
       setState('done')
-      // Refresh server data without full reload
       setTimeout(() => { router.refresh(); setState('idle') }, 1500)
     } catch {
       setMsg('Error al sincronizar')
@@ -29,14 +28,19 @@ export default function SyncButton({ propertyId }: { propertyId: string }) {
   return (
     <div className="flex items-center gap-3">
       {msg && (
-        <span className={`text-xs ${state === 'error' ? 'text-red-500' : 'text-gray-400'}`}>
+        <span className="text-xs" style={{ color: state === 'error' ? '#F20022' : 'rgba(242,242,242,0.4)' }}>
           {msg}
         </span>
       )}
       <button
         onClick={handleSync}
         disabled={state === 'loading' || state === 'done'}
-        className="text-sm border border-gray-300 px-4 py-2 rounded-lg hover:bg-gray-50 transition text-gray-600 flex items-center gap-2 disabled:opacity-50"
+        className="text-sm px-4 py-2 rounded-xl flex items-center gap-2 transition-all duration-200 disabled:opacity-50 cursor-pointer"
+        style={{
+          color: '#B9B5DC',
+          border: '1px solid rgba(77,67,158,0.3)',
+          backgroundColor: 'rgba(77,67,158,0.08)',
+        }}
       >
         <span className={state === 'loading' ? 'animate-spin inline-block' : ''}>↻</span>
         {state === 'loading' ? 'Sincronizando...' : 'Sincronizar con Guesty'}
