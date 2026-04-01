@@ -29,7 +29,7 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // Public paths that don't require auth
-  const publicPaths = ['/login', '/auth/callback', '/onboarding', '/admin', '/api/onboarding', '/api/sync/notion']
+  const publicPaths = ['/login', '/auth/callback', '/onboarding', '/admin', '/api/onboarding']
   const isPublic = publicPaths.some((p) => pathname.startsWith(p))
 
   if (!user && !isPublic) {
