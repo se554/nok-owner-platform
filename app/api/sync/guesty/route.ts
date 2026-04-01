@@ -53,25 +53,7 @@ export async function POST(req: Request) {
     }, { status: 422 })
   }
 
-  // ── Throttle: max 1 sync per 30 minutes per property ─────────────────────
-  const { data: lastSync } = await sb
-    .from('reservations')
-    .select('synced_at')
-    .eq('property_id', propertyId)
-    .order('synced_at', { ascending: false })
-    .limit(1)
-    .single()
-
-  if (lastSync?.synced_at) {
-    const minutesSinceSync = (Date.now() - new Date(lastSync.synced_at).getTime()) / 60_000
-    if (minutesSinceSync < 30) {
-      return NextResponse.json({
-        success: true,
-        skipped: true,
-        message: `Sincronización reciente — próxima disponible en ${Math.ceil(30 - minutesSinceSync)} min`,
-      })
-    }
-  }
+  // Throttle disabled temporarily for testing
 
   const results = { reservations: 0, reviews: 0, pricing: 0, errors: [] as string[] }
 
