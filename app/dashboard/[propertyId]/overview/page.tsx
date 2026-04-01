@@ -44,8 +44,11 @@ export default async function OverviewPage({ params }: Props) {
 
   if (!property) notFound()
 
+  const now = new Date()
+  const yearStart = `${now.getFullYear()}-01-01`
+
   // Load latest metrics + recent cleanings in parallel
-  const [metricsRes, cleaningsRes, upcomingRes] = await Promise.all([
+  const [metricsRes, cleaningsRes, upcomingRes, channelRes] = await Promise.all([
     serviceSupabase
       .from('property_metrics')
       .select('*')
@@ -69,11 +72,36 @@ export default async function OverviewPage({ params }: Props) {
       .gte('check_in', new Date().toISOString().split('T')[0])
       .order('check_in', { ascending: true })
       .limit(3),
+    serviceSupabase
+      .from('reservations')
+      .select('channel, owner_revenue, currency')
+      .eq('property_id', propertyId)
+      .neq('status', 'cancelled')
+      .gte('check_in', yearStart),
   ])
 
   const metrics = metricsRes.data
   const lastCleaning = cleaningsRes.data
   const upcomingReservations = upcomingRes.data ?? []
+
+  // Aggregate channel data
+  const channelMap: Record<string, { count: number; revenue: number }> = {}
+  for (const r of channelRes.data ?? []) {
+    const ch = r.channel ?? 'Otro'
+    if (!channelMap[ch]) channelMap[ch] = { count: 0, revenue: 0 }
+    channelMap[ch].count++
+    channelMap[ch].revenue += r.owner_revenue ?? 0
+  }
+  const channels = Object.entries(channelMap)
+    .sort((a, b) => b[1].revenue - a[1].revenue)
+  const totalRevenue = channels.reduce((s, [, v]) => s + v.revenue, 0)
+
+  const CHANNEL_COLORS: Record<string, string> = {
+    Airbnb: 'bg-rose-500',
+    'Booking.com': 'bg-blue-500',
+    Direct: 'bg-green-500',
+    Vrbo: 'bg-purple-500',
+  }
 
   return (
     <div className="p-6 max-w-5xl">
@@ -131,6 +159,35 @@ export default async function OverviewPage({ params }: Props) {
               count={metrics.review_count_booking}
             />
           )}
+        </div>
+      )}
+
+      {/* Channel breakdown */}
+      {channels.length > 0 && (
+        <div className="bg-white rounded-xl border border-gray-200 p-5 mb-6">
+          <h2 className="font-semibold text-gray-900 mb-4">Origen de reservas — {now.getFullYear()}</h2>
+          <div className="space-y-3">
+            {channels.map(([channel, data]) => {
+              const pct = totalRevenue > 0 ? (data.revenue / totalRevenue) * 100 : 0
+              const color = CHANNEL_COLORS[channel] ?? 'bg-gray-400'
+              return (
+                <div key={channel}>
+                  <div className="flex items-center justify-between text-sm mb-1">
+                    <span className="font-medium text-gray-700">{channel}</span>
+                    <span className="text-gray-500">
+                      {data.count} reservas · {formatCurrency(data.revenue)}
+                    </span>
+                  </div>
+                  <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full ${color}`}
+                      style={{ width: `${pct.toFixed(1)}%` }}
+                    />
+                  </div>
+                </div>
+              )
+            })}
+          </div>
         </div>
       )}
 

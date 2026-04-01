@@ -119,15 +119,27 @@ export default function CatalogPage() {
     // Save all selections first
     await Promise.all(Object.keys(selections).map(id => updateItemInDB(id)))
 
-    const res = await fetch('/api/onboarding/generate-quote', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ session_id: sessionId }),
-    })
+    try {
+      const res = await fetch('/api/onboarding/generate-quote', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_id: sessionId }),
+      })
 
-    if (res.ok) {
-      router.push(`/onboarding/${sessionId}/quote`)
-    } else {
+      if (res.ok) {
+        const blob = await res.blob()
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = res.headers.get('Content-Disposition')?.split('filename=')[1]?.replace(/"/g, '') ?? 'cotizacion-nok.pdf'
+        document.body.appendChild(a)
+        a.click()
+        a.remove()
+        URL.revokeObjectURL(url)
+      }
+    } catch (err) {
+      console.error(err)
+    } finally {
       setGenerating(false)
     }
   }

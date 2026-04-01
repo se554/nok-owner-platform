@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
         .from('onboarding_inventory_items')
         .select('*, catalog_items(name, price, currency)')
         .eq('session_id', session_id)
-        .eq('status', 'missing'),
+        .in('status', ['missing', 'not_nok_standard']),
     ])
 
     if (!session) {
@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
       item_name: item.item_name,
       quantity: item.quantity_needed,
       color: item.selected_color ?? undefined,
-      unit_price: item.unit_price ?? 0,
+      unit_price: item.unit_price ?? item.catalog_items?.price ?? 0,
       currency: item.currency ?? currency,
       status: 'missing' as const,
     }))
@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
     // Upload PDF to Supabase Storage
     const storagePath = `${session_id}/cotizacion-nok-${Date.now()}.pdf`
     const { error: uploadError } = await supabase.storage
-      .from('floor-plans')
+      .from('Floor-plans')
       .upload(storagePath, pdfBuffer, { contentType: 'application/pdf', upsert: true })
 
     if (uploadError) {
@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
     }
 
     const { data: { publicUrl } } = supabase.storage
-      .from('floor-plans')
+      .from('Floor-plans')
       .getPublicUrl(storagePath)
 
     // Update session with quote info
@@ -139,12 +139,12 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    return NextResponse.json({
-      success: true,
-      quote_pdf_url: publicUrl,
-      quote_total: grandTotal,
-      currency,
-      items_count: quoteItems.length,
+    // Return PDF directly as download
+    return new Response(new Uint8Array(pdfBuffer), {
+      headers: {
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `attachment; filename="cotizacion-nok-${session.owner_name.replace(/\s+/g, '-')}.pdf"`,
+      },
     })
   } catch (err) {
     console.error('generate-quote error:', err)

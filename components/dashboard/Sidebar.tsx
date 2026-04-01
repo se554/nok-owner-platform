@@ -21,6 +21,12 @@ const navItems = (propertyId: string) => [
   { label: 'Chat IA', href: `/dashboard/${propertyId}/chat`, icon: '💬' },
 ]
 
+const adminItems = [
+  { label: 'Cotizaciones', href: '/admin/onboarding', icon: '📋' },
+  { label: 'Catálogo', href: '/admin/catalog', icon: '🛍️' },
+  { label: 'Nueva cotización', href: '/onboarding', icon: '➕' },
+]
+
 export default function Sidebar({ owner, properties }: SidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
@@ -105,6 +111,33 @@ export default function Sidebar({ owner, properties }: SidebarProps) {
               </Link>
             )
           })}
+
+          {/* Admin section */}
+          <div className="pt-4">
+            <p className="px-3 text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1.5">NOK Ops</p>
+            {adminItems.map(item => {
+              const isActive = pathname === item.href || pathname.startsWith(item.href)
+              const isNew = item.label === 'Nueva cotización'
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`
+                    flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
+                    ${isActive
+                      ? 'bg-[#0080C6] text-white'
+                      : isNew
+                        ? 'text-[#0080C6] hover:bg-[#E6F3FB]'
+                        : 'text-gray-600 hover:bg-gray-100'
+                    }
+                  `}
+                >
+                  <span className="text-base leading-none">{item.icon}</span>
+                  {item.label}
+                </Link>
+              )
+            })}
+          </div>
         </nav>
       )}
 

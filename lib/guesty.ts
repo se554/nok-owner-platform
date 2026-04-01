@@ -9,20 +9,45 @@
  *  4. next: { revalidate } on fetch calls provides an additional Next.js layer cache
  */
 
+import { createServiceClient } from '@/lib/supabase/server'
+
 const BASE_URL = process.env.GUESTY_BASE_URL || 'https://open-api.guesty.com/v1'
 const CLIENT_ID = process.env.GUESTY_CLIENT_ID || ''
 const CLIENT_SECRET = process.env.GUESTY_CLIENT_SECRET || ''
+const TOKEN_CACHE_KEY = 'guesty_access_token'
 
-// ─── OAuth token cache (module-level, persists across requests in same process) ──
+// ─── OAuth token cache ─────────────────────────────────────────────────────
+// Two-layer cache:
+//  1. In-memory (fast, lost on cold start)
+//  2. Supabase system_cache table (persistent across cold starts)
+// This prevents hitting the Guesty OAuth rate limit on every serverless invocation.
 
-let tokenCache: { token: string; expiresAt: number } | null = null
+let memoryCache: { token: string; expiresAt: number } | null = null
 
 async function getAccessToken(): Promise<string> {
-  // Return cached token if still valid (with 60s buffer)
-  if (tokenCache && Date.now() < tokenCache.expiresAt - 60_000) {
-    return tokenCache.token
+  // 1. Check in-memory cache
+  if (memoryCache && Date.now() < memoryCache.expiresAt - 60_000) {
+    return memoryCache.token
   }
 
+  // 2. Check Supabase persistent cache
+  try {
+    const sb = createServiceClient()
+    const { data: cached } = await sb
+      .from('system_cache')
+      .select('value, expires_at')
+      .eq('key', TOKEN_CACHE_KEY)
+      .single()
+
+    if (cached && new Date(cached.expires_at).getTime() > Date.now() + 60_000) {
+      memoryCache = { token: cached.value, expiresAt: new Date(cached.expires_at).getTime() }
+      return cached.value
+    }
+  } catch {
+    // Cache miss — proceed to fetch
+  }
+
+  // 3. Fetch new token from Guesty
   const res = await fetch('https://open-api.guesty.com/oauth2/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -43,12 +68,24 @@ async function getAccessToken(): Promise<string> {
   }
 
   const data = await res.json() as { access_token: string; expires_in: number }
-  tokenCache = {
-    token: data.access_token,
-    expiresAt: Date.now() + data.expires_in * 1000,
+  const expiresAt = new Date(Date.now() + data.expires_in * 1000).toISOString()
+
+  // Save to memory
+  memoryCache = { token: data.access_token, expiresAt: new Date(expiresAt).getTime() }
+
+  // Save to Supabase (fire and forget)
+  try {
+    const sb = createServiceClient()
+    await sb.from('system_cache').upsert({
+      key: TOKEN_CACHE_KEY,
+      value: data.access_token,
+      expires_at: expiresAt,
+    })
+  } catch {
+    // Non-critical — memory cache still works
   }
 
-  return tokenCache.token
+  return data.access_token
 }
 
 // ─── Core fetch helper ─────────────────────────────────────────────────────
@@ -246,11 +283,15 @@ export async function getReviews(
   listingId: string,
   limit = 20
 ): Promise<GuestyReview[]> {
-  const res = await guestyFetch<GuestyPaginatedResponse<GuestyReview>>('/reviews', {
+  const res = await guestyFetch<any>('/reviews', {
     params: { listingId, limit },
     revalidate: 3600,
   })
-  return res.results
+  // Guesty may return { results: [] } or { data: [] } or a plain array
+  if (Array.isArray(res)) return res
+  if (Array.isArray(res?.results)) return res.results
+  if (Array.isArray(res?.data)) return res.data
+  return []
 }
 
 export async function getReviewStats(listingId: string): Promise<{

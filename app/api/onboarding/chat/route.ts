@@ -105,26 +105,29 @@ ESTÁNDARES NOK (lo que debe tener el apartamento):
 ${standardsText}
 ${inventoryContext}
 
-FLUJO OBLIGATORIO — sigue este orden estrictamente:
-Orden de espacios: ${SPACE_ORDER.join(' → ')}
+ORDEN DE ESPACIOS (sigue este orden, sin saltarte ninguno):
+cocina → sala/comedor → habitación(es) → baño(s) → lavandería → terraza → general
 
-REGLAS DE AVANCE (MUY IMPORTANTE):
-1. Para cada espacio, haz UNA sola pregunta abierta: "¿Qué tienes en la [espacio]?"
-2. Con la respuesta del propietario, ya tienes suficiente para hacer el inventario — NO hagas preguntas adicionales sobre ese espacio a menos que la respuesta sea muy vaga (ej: "algo")
-3. Después de 1-2 intercambios sobre un espacio: haz el resumen de ese espacio y PASA AUTOMÁTICAMENTE al siguiente SIN preguntar permiso
-4. NUNCA preguntes "¿hay algo más?" o "¿terminamos con X?" — TÚ decides cuándo avanzar
-5. Si el propietario dice que no tiene nada en un espacio, regístralo todo como "missing" y pasa al siguiente inmediatamente
-6. Si algo no cumple estándar NOK, anótalo y sigue — no te enredes en un solo ítem
+REGLA #1 — NUNCA TERMINES UN MENSAJE SIN PREGUNTAR EL SIGUIENTE ESPACIO:
+Cada vez que termines de revisar un espacio, tu mensaje SIEMPRE debe terminar con la pregunta del siguiente espacio.
+Ejemplo correcto: "Tienes ✅ nevera y microondas. Te falta ❌ cafetera, utensilios de cocina y limpieza. Perfecto, pasemos a la **sala/comedor** — ¿qué muebles y decoración tienes ahí?"
+NUNCA dejes un mensaje sin la pregunta del siguiente espacio hasta que hayas cubierto todos.
 
-FORMATO POR ESPACIO:
-- 1 pregunta inicial sobre el espacio
-- Tras recibir respuesta: resumen rápido en 2-3 líneas ("Tienes ✅ X, te falta ❌ Y")
-- Frase de transición: "Perfecto, ahora cuéntame sobre [siguiente espacio] — ¿qué tienes ahí?"
+REGLA #2 — SI EL USUARIO CONFIRMA, PREGUNTA EL SIGUIENTE ESPACIO:
+Si el usuario dice "correcto", "ok", "sí", "exacto" o similar después de un resumen, significa que el espacio está listo.
+Responde: "Perfecto, pasemos a [siguiente espacio] — ¿qué tienes ahí?"
 
-CIERRE:
-- Cuando hayas cubierto TODOS los espacios, di exactamente: "¡Listo! Ya tengo todo lo que necesito para preparar tu cotización."
+REGLA #3 — UN INTERCAMBIO POR ESPACIO:
+Con UNA respuesta del propietario tienes suficiente. Haz el resumen y pasa al siguiente.
+NO preguntes "¿algo más en la cocina?" ni "¿terminamos con X?". TÚ decides cuándo avanzar.
 
-TONO: amigable, directo, eficiente. Máximo 4 oraciones por respuesta. NUNCA uses formato de lista con bullets para preguntar — solo para resumir.`
+REGLA #4 — ESPACIO VACÍO:
+Si el propietario dice que no tiene nada, di: "Ok, todo por conseguir en [espacio]. Pasemos a [siguiente] — ¿qué tienes ahí?"
+
+CIERRE (solo cuando hayas cubierto TODOS los espacios):
+Di exactamente: "¡Listo! Ya tengo todo lo que necesito para preparar tu cotización."
+
+TONO: amigable, directo, eficiente. Máximo 4 oraciones por respuesta.`
 
     // Strip leading assistant messages (Anthropic requires first message to be user)
     const trimmedMessages = [...messages]
@@ -135,12 +138,11 @@ TONO: amigable, directo, eficiente. Máximo 4 oraciones por respuesta. NUNCA use
       return new Response(JSON.stringify({ error: 'No hay mensajes de usuario' }), { status: 400 })
     }
 
-    // Stream with tool support
+    // Stream — no tools here, extraction happens in background after stream closes
     const stream = await anthropic.messages.create({
       model: 'claude-sonnet-4-6',
       max_tokens: 1500,
       system: systemPrompt,
-      tools: [SAVE_ITEMS_TOOL],
       messages: trimmedMessages.map(m => ({
         role: m.role,
         content: m.content as string,
@@ -151,30 +153,14 @@ TONO: amigable, directo, eficiente. Máximo 4 oraciones por respuesta. NUNCA use
     let fullText = ''
     const encoder = new TextEncoder()
 
-    // Accumulate tool call inputs from streaming deltas
-    type ToolCall = { id: string; name: string; inputJson: string }
-    let currentTool: ToolCall | null = null
-    const toolCalls: ToolCall[] = []
-
     const readable = new ReadableStream({
       async start(controller) {
         try {
           for await (const event of stream) {
-            if (event.type === 'content_block_start') {
-              if (event.content_block.type === 'tool_use') {
-                currentTool = { id: event.content_block.id, name: event.content_block.name, inputJson: '' }
-              }
-            } else if (event.type === 'content_block_delta') {
-              if (event.delta.type === 'text_delta') {
-                const chunk = event.delta.text
-                fullText += chunk
-                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: chunk })}\n\n`))
-              } else if (event.delta.type === 'input_json_delta' && currentTool) {
-                currentTool.inputJson += event.delta.partial_json
-              }
-            } else if (event.type === 'content_block_stop' && currentTool) {
-              toolCalls.push(currentTool)
-              currentTool = null
+            if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
+              const chunk = event.delta.text
+              fullText += chunk
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: chunk })}\n\n`))
             }
           }
 
@@ -232,11 +218,47 @@ ${standardsText}`,
                     await supabase.from('onboarding_inventory_items').delete()
                       .eq('session_id', session_id).eq('space', space)
                   }
-                  const rows = input.items.map(item => ({
-                    session_id, space: item.space, item_name: item.item_name,
-                    status: item.status, quantity_needed: item.quantity_needed,
-                    notes: item.notes ?? null,
-                  }))
+                  // Fetch catalog items for price matching
+                  const { data: catalogItems } = await supabase
+                    .from('catalog_items')
+                    .select('id, name, space_type, price, currency')
+                    .eq('country', country)
+                    .eq('active', true)
+
+                  const matchCatalog = (itemName: string, space: string) => {
+                    if (!catalogItems) return null
+                    const nameLower = itemName.toLowerCase()
+                    // Exact match first
+                    let match = catalogItems.find(c =>
+                      c.name.toLowerCase() === nameLower && (c.space_type === space || !c.space_type)
+                    )
+                    if (!match) {
+                      // Partial match (catalog name contains item name or vice versa)
+                      match = catalogItems.find(c =>
+                        (c.name.toLowerCase().includes(nameLower) || nameLower.includes(c.name.toLowerCase())) &&
+                        (c.space_type === space || !c.space_type)
+                      )
+                    }
+                    if (!match) {
+                      // Looser: ignore space
+                      match = catalogItems.find(c =>
+                        c.name.toLowerCase().includes(nameLower) || nameLower.includes(c.name.toLowerCase())
+                      )
+                    }
+                    return match
+                  }
+
+                  const rows = input.items.map(item => {
+                    const catalogMatch = matchCatalog(item.item_name, item.space)
+                    return {
+                      session_id, space: item.space, item_name: item.item_name,
+                      status: item.status, quantity_needed: item.quantity_needed,
+                      notes: item.notes ?? null,
+                      catalog_item_id: catalogMatch?.id ?? null,
+                      unit_price: catalogMatch?.price ?? null,
+                      currency: catalogMatch?.currency ?? (country === 'DO' ? 'DOP' : 'COP'),
+                    }
+                  })
                   if (rows.length > 0) {
                     await supabase.from('onboarding_inventory_items').insert(rows)
                   }
