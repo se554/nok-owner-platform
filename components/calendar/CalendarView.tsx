@@ -200,21 +200,14 @@ export default function CalendarView({ propertyId, year, month, reservations, pr
                   </div>
                 )}
 
-                {/* Rate */}
+                {/* Rate from Guesty */}
                 {!reservation && price?.base_rate && (
                   <div className="mt-auto">
                     <p className="text-[10px] font-semibold text-gray-700">
                       {fmt(price.base_rate, price.currency ?? 'USD')}
                     </p>
-                    {price.recommended_rate && price.recommended_rate !== price.base_rate && (
-                      <div className="flex items-center gap-0.5 mt-0.5">
-                        <span className={`text-[8px] font-bold ${price.recommended_rate > price.base_rate ? 'text-green-600' : 'text-red-400'}`}>
-                          {price.recommended_rate > price.base_rate ? '▲' : '▼'}
-                        </span>
-                        <p className={`text-[9px] font-medium ${price.recommended_rate > price.base_rate ? 'text-green-600' : 'text-red-400'}`}>
-                          {fmt(price.recommended_rate)}
-                        </p>
-                      </div>
+                    {price.min_stay_nights && price.min_stay_nights > 1 && (
+                      <p className="text-[9px] text-gray-400">{price.min_stay_nights}n mín</p>
                     )}
                   </div>
                 )}
@@ -243,12 +236,6 @@ export default function CalendarView({ propertyId, year, month, reservations, pr
         <div className="flex items-center gap-1">
           <div className="w-2.5 h-2.5 rounded-sm bg-gray-400" />
           <span className="text-xs text-gray-500">Otro</span>
-        </div>
-        <div className="flex items-center gap-2 ml-2 pl-2 border-l border-gray-200">
-          <span className="text-[10px] text-green-600 font-bold">▲</span>
-          <span className="text-xs text-gray-400">Wheelhouse sugiere subir tarifa</span>
-          <span className="text-[10px] text-red-400 font-bold">▼</span>
-          <span className="text-xs text-gray-400">Wheelhouse sugiere bajar</span>
         </div>
       </div>
 

@@ -131,14 +131,9 @@ export default async function OverviewPage({ params }: Props) {
           sub="por noche"
         />
         <MetricCard
-          label="Tarifa Wheelhouse"
-          value={metrics?.recommended_rate ? formatCurrency(metrics.recommended_rate) : '—'}
-          sub={metrics?.applied_rate ? `Aplicada: ${formatCurrency(metrics.applied_rate)}` : 'recomendada'}
-          highlight={
-            metrics?.recommended_rate && metrics?.applied_rate
-              ? metrics.recommended_rate > metrics.applied_rate
-              : false
-          }
+          label="Noches reservadas"
+          value={metrics?.active_reservations_count ? String(metrics.active_reservations_count) : '—'}
+          sub="reservas activas"
         />
       </div>
 
