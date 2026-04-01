@@ -22,7 +22,7 @@ function toUIMessages(messages: ChatInterfaceProps['initialMessages']): UIMessag
 
 const SUGGESTED_QUESTIONS = [
   '¿Cuánto gané este mes?',
-  '¿Cuáles son los precios para Semana Santa?',
+  '¿Cuáles son los precios para esta semana?',
   '¿Cuándo fue la última limpieza?',
   '¿Qué reseñas tengo recientes?',
   '¿Qué fechas están disponibles en julio?',
@@ -69,16 +69,21 @@ export default function ChatInterface({
   return (
     <div className="flex-1 flex flex-col min-h-0">
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+      <div className="flex-1 overflow-y-auto px-6 lg:px-10 py-6 space-y-5">
         {showWelcome && (
           <div className="flex flex-col items-center justify-center py-12 text-center max-w-lg mx-auto">
-            <div className="w-14 h-14 bg-black rounded-2xl flex items-center justify-center mb-4">
-              <span className="text-white text-2xl">✦</span>
+            <div
+              className="w-14 h-14 rounded-2xl flex items-center justify-center mb-5"
+              style={{ backgroundColor: 'rgba(77,67,158,0.15)', border: '1px solid rgba(77,67,158,0.3)' }}
+            >
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#B9B5DC" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+              </svg>
             </div>
-            <h2 className="text-lg font-semibold text-gray-900 mb-1">
+            <h2 className="font-serif text-2xl font-light text-[#F2F2F2] mb-2">
               Hola, {ownerName.split(' ')[0]}
             </h2>
-            <p className="text-gray-500 text-sm mb-8">
+            <p className="text-sm mb-8" style={{ color: 'rgba(242,242,242,0.4)' }}>
               Soy tu asistente de NOK. Puedo responderte sobre ingresos, reservas,
               precios, reseñas, limpiezas e inventario de tu propiedad.
             </p>
@@ -88,7 +93,20 @@ export default function ChatInterface({
                 <button
                   key={q}
                   onClick={() => handleSend(q)}
-                  className="text-left px-4 py-3 rounded-xl border border-gray-200 bg-white hover:border-gray-400 hover:bg-gray-50 text-sm text-gray-700 transition"
+                  className="text-left px-4 py-3.5 rounded-xl text-sm transition-all duration-200 cursor-pointer"
+                  style={{
+                    color: 'rgba(242,242,242,0.7)',
+                    border: '1px solid rgba(242,242,242,0.07)',
+                    backgroundColor: '#141413',
+                  }}
+                  onMouseEnter={e => {
+                    (e.currentTarget as HTMLElement).style.borderColor = 'rgba(77,67,158,0.4)'
+                    ;(e.currentTarget as HTMLElement).style.color = '#F2F2F2'
+                  }}
+                  onMouseLeave={e => {
+                    (e.currentTarget as HTMLElement).style.borderColor = 'rgba(242,242,242,0.07)'
+                    ;(e.currentTarget as HTMLElement).style.color = 'rgba(242,242,242,0.7)'
+                  }}
                 >
                   {q}
                 </button>
@@ -103,20 +121,28 @@ export default function ChatInterface({
             className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
           >
             {message.role === 'assistant' && (
-              <div className="w-7 h-7 bg-black rounded-full flex items-center justify-center shrink-0 mr-2 mt-0.5">
-                <span className="text-white text-xs">✦</span>
+              <div
+                className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 mr-2.5 mt-0.5"
+                style={{ backgroundColor: 'rgba(77,67,158,0.2)' }}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#B9B5DC" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                </svg>
               </div>
             )}
 
             <div
               className={`max-w-[75%] rounded-2xl px-4 py-3 text-sm ${
-                message.role === 'user'
-                  ? 'bg-black text-white rounded-br-sm'
-                  : 'bg-white border border-gray-200 text-gray-800 rounded-bl-sm'
+                message.role === 'user' ? 'rounded-br-sm' : 'rounded-bl-sm'
               }`}
+              style={
+                message.role === 'user'
+                  ? { backgroundColor: '#4D439E', color: '#F2F2F2' }
+                  : { backgroundColor: '#1E1E1C', color: 'rgba(242,242,242,0.85)', border: '1px solid rgba(242,242,242,0.07)' }
+              }
             >
               {message.role === 'assistant' ? (
-                <div className="prose prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-li:my-0">
+                <div className="prose prose-sm prose-invert max-w-none prose-p:my-1 prose-ul:my-1 prose-li:my-0 prose-strong:text-[#B9B5DC] prose-a:text-[#B9B5DC]">
                   <ReactMarkdown>
                     {message.parts
                       .filter(p => p.type === 'text')
@@ -138,14 +164,22 @@ export default function ChatInterface({
 
         {isLoading && (
           <div className="flex justify-start">
-            <div className="w-7 h-7 bg-black rounded-full flex items-center justify-center shrink-0 mr-2 mt-0.5">
-              <span className="text-white text-xs">✦</span>
+            <div
+              className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 mr-2.5 mt-0.5"
+              style={{ backgroundColor: 'rgba(77,67,158,0.2)' }}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#B9B5DC" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+              </svg>
             </div>
-            <div className="bg-white border border-gray-200 rounded-2xl rounded-bl-sm px-4 py-3">
-              <div className="flex gap-1">
-                <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:0ms]"></span>
-                <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:150ms]"></span>
-                <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:300ms]"></span>
+            <div
+              className="rounded-2xl rounded-bl-sm px-4 py-3"
+              style={{ backgroundColor: '#1E1E1C', border: '1px solid rgba(242,242,242,0.07)' }}
+            >
+              <div className="flex gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full animate-bounce [animation-delay:0ms]" style={{ backgroundColor: '#4D439E' }} />
+                <span className="w-1.5 h-1.5 rounded-full animate-bounce [animation-delay:150ms]" style={{ backgroundColor: '#4D439E' }} />
+                <span className="w-1.5 h-1.5 rounded-full animate-bounce [animation-delay:300ms]" style={{ backgroundColor: '#4D439E' }} />
               </div>
             </div>
           </div>
@@ -155,8 +189,11 @@ export default function ChatInterface({
       </div>
 
       {/* Input */}
-      <div className="shrink-0 border-t border-gray-200 bg-white px-4 py-3">
-        <form onSubmit={handleSubmit} className="flex items-end gap-2">
+      <div
+        className="shrink-0 px-6 lg:px-10 py-4"
+        style={{ borderTop: '1px solid rgba(242,242,242,0.06)' }}
+      >
+        <form onSubmit={handleSubmit} className="flex items-end gap-3">
           <textarea
             value={inputValue}
             onChange={e => setInputValue(e.target.value)}
@@ -168,19 +205,27 @@ export default function ChatInterface({
                 handleSend(inputValue)
               }
             }}
-            className="flex-1 resize-none border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition max-h-32 overflow-y-auto"
+            className="flex-1 resize-none rounded-xl px-4 py-3 text-sm outline-none transition-all duration-300 max-h-32 overflow-y-auto"
+            style={{
+              backgroundColor: '#141413',
+              border: '1px solid rgba(242,242,242,0.08)',
+              color: '#F2F2F2',
+            }}
+            onFocus={e => (e.currentTarget as HTMLElement).style.borderColor = 'rgba(77,67,158,0.5)'}
+            onBlur={e => (e.currentTarget as HTMLElement).style.borderColor = 'rgba(242,242,242,0.08)'}
           />
           <button
             type="submit"
             disabled={isLoading || !inputValue.trim()}
-            className="shrink-0 w-10 h-10 bg-black text-white rounded-xl flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-800 transition"
+            className="shrink-0 w-10 h-10 rounded-xl flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer"
+            style={{ backgroundColor: '#4D439E', color: '#F2F2F2' }}
           >
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
               <path d="M3.105 2.289a.75.75 0 00-.826.95l1.414 4.925A1.5 1.5 0 005.135 9.25h6.115a.75.75 0 010 1.5H5.135a1.5 1.5 0 00-1.442 1.086l-1.414 4.926a.75.75 0 00.826.95 28.896 28.896 0 0015.293-7.154.75.75 0 000-1.115A28.897 28.897 0 003.105 2.289z" />
             </svg>
           </button>
         </form>
-        <p className="text-xs text-gray-400 mt-2 text-center">
+        <p className="text-xs mt-2 text-center" style={{ color: 'rgba(242,242,242,0.2)' }}>
           Enter para enviar · Shift+Enter para nueva línea
         </p>
       </div>
