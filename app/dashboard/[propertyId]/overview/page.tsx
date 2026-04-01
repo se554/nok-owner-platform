@@ -1,6 +1,7 @@
 import { notFound, redirect } from 'next/navigation'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import Link from 'next/link'
+import { copToUSD } from '@/lib/trm'
 
 interface Props {
   params: Promise<{ propertyId: string }>
@@ -45,10 +46,11 @@ export default async function OverviewPage({ params }: Props) {
   if (!property) notFound()
 
   const now = new Date()
+  const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`
   const yearStart = `${now.getFullYear()}-01-01`
 
   // Load latest metrics + recent cleanings in parallel
-  const [metricsRes, cleaningsRes, upcomingRes, channelRes] = await Promise.all([
+  const [metricsRes, cleaningsRes, upcomingRes, channelRes, checkoutsRes] = await Promise.all([
     serviceSupabase
       .from('property_metrics')
       .select('*')
@@ -78,6 +80,14 @@ export default async function OverviewPage({ params }: Props) {
       .eq('property_id', propertyId)
       .neq('status', 'cancelled')
       .gte('check_in', yearStart),
+    // Checkouts this month (for cleaning cost calculation)
+    serviceSupabase
+      .from('reservations')
+      .select('check_out')
+      .eq('property_id', propertyId)
+      .neq('status', 'cancelled')
+      .gte('check_out', monthStart)
+      .lte('check_out', `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()).padStart(2, '0')}`),
   ])
 
   const metrics = metricsRes.data
@@ -102,6 +112,40 @@ export default async function OverviewPage({ params }: Props) {
     Direct: 'bg-green-500',
     Vrbo: 'bg-purple-500',
   }
+
+  // ── Financial summary for current month ────────────────────────────────────
+  // Revenue this month from reservations with check_in in month
+  const monthRevenue = (channelRes.data ?? [])
+    .filter((r: any) => r.channel !== undefined) // all already filtered to year; refine below
+
+  // Actually pull month revenue from reservations with check_in in current month
+  const { data: monthResData } = await serviceSupabase
+    .from('reservations')
+    .select('owner_revenue, currency')
+    .eq('property_id', propertyId)
+    .neq('status', 'cancelled')
+    .gte('check_in', monthStart)
+
+  const grossRevenue = (monthResData ?? []).reduce((s, r) => s + (r.owner_revenue ?? 0), 0)
+
+  // Commission
+  const commissionRate = (property.nok_commission_rate ?? 0) / 100
+  const commissionAmount = grossRevenue * commissionRate
+
+  // Cleaning cost this month
+  const checkoutsThisMonth = checkoutsRes.data?.length ?? 0
+  let cleaningCostUSD = 0
+  if (property.cleaning_fee && checkoutsThisMonth > 0) {
+    const rawFee = property.cleaning_fee as number
+    if (property.cleaning_fee_currency === 'COP') {
+      cleaningCostUSD = await copToUSD(rawFee * checkoutsThisMonth)
+    } else {
+      cleaningCostUSD = rawFee * checkoutsThisMonth
+    }
+  }
+
+  const netRevenue = grossRevenue - commissionAmount - cleaningCostUSD
+  const hasFinancialData = property.nok_commission_rate != null || property.cleaning_fee != null
 
   return (
     <div className="p-6 max-w-5xl">
@@ -136,6 +180,44 @@ export default async function OverviewPage({ params }: Props) {
           sub="reservas activas"
         />
       </div>
+
+      {/* Financial breakdown — only shown when Notion data is synced */}
+      {hasFinancialData && (
+        <div className="bg-white rounded-xl border border-gray-200 p-5 mb-6">
+          <h2 className="font-semibold text-gray-900 mb-4">
+            Resumen financiero — {new Date(now.getFullYear(), now.getMonth()).toLocaleDateString('es-DO', { month: 'long', year: 'numeric' })}
+          </h2>
+          <div className="space-y-3">
+            <FinRow
+              label="Ingresos brutos"
+              value={formatCurrency(grossRevenue)}
+              valueClass="text-gray-900 font-semibold"
+            />
+            {property.nok_commission_rate != null && (
+              <FinRow
+                label={`Comisión NOK (${property.nok_commission_rate}%)`}
+                value={`− ${formatCurrency(commissionAmount)}`}
+                valueClass="text-red-500"
+              />
+            )}
+            {property.cleaning_fee != null && (
+              <FinRow
+                label={`Limpieza (${checkoutsThisMonth} checkout${checkoutsThisMonth !== 1 ? 's' : ''})`}
+                value={`− ${formatCurrency(cleaningCostUSD)}`}
+                valueClass="text-red-500"
+              />
+            )}
+            <div className="border-t border-gray-100 pt-3">
+              <FinRow
+                label="Ingreso neto propietario"
+                value={formatCurrency(netRevenue)}
+                valueClass="text-green-700 font-bold text-base"
+                labelClass="font-semibold text-gray-800"
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Reviews row */}
       {(metrics?.review_score_airbnb || metrics?.review_score_booking) && (
@@ -250,6 +332,12 @@ export default async function OverviewPage({ params }: Props) {
                 {metrics?.active_reservations_count ?? '—'}
               </span>
             </div>
+            {property.nok_commission_rate != null && (
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-600">Comisión NOK</span>
+                <span className="text-gray-900">{property.nok_commission_rate}%</span>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -269,6 +357,25 @@ export default async function OverviewPage({ params }: Props) {
           Abrir chat →
         </Link>
       </div>
+    </div>
+  )
+}
+
+function FinRow({
+  label,
+  value,
+  valueClass = 'text-gray-900',
+  labelClass = 'text-gray-600',
+}: {
+  label: string
+  value: string
+  valueClass?: string
+  labelClass?: string
+}) {
+  return (
+    <div className="flex items-center justify-between text-sm">
+      <span className={labelClass}>{label}</span>
+      <span className={valueClass}>{value}</span>
     </div>
   )
 }
