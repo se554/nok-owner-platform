@@ -1,0 +1,333 @@
+/**
+ * Guesty API wrapper — OAuth2 client credentials
+ * Docs: https://open-api.guesty.com/docs
+ *
+ * Rate-limit protection strategy:
+ *  1. OAuth token is cached in memory — only refreshed when expired (tokens last ~24h)
+ *  2. All page data comes from Supabase (synced via /api/sync/guesty), never directly from Guesty
+ *  3. The sync endpoint enforces a 30-min cooldown per property (checked in the route)
+ *  4. next: { revalidate } on fetch calls provides an additional Next.js layer cache
+ */
+
+const BASE_URL = process.env.GUESTY_BASE_URL || 'https://open-api.guesty.com/v1'
+const CLIENT_ID = process.env.GUESTY_CLIENT_ID || ''
+const CLIENT_SECRET = process.env.GUESTY_CLIENT_SECRET || ''
+
+// ─── OAuth token cache (module-level, persists across requests in same process) ──
+
+let tokenCache: { token: string; expiresAt: number } | null = null
+
+async function getAccessToken(): Promise<string> {
+  // Return cached token if still valid (with 60s buffer)
+  if (tokenCache && Date.now() < tokenCache.expiresAt - 60_000) {
+    return tokenCache.token
+  }
+
+  const res = await fetch('https://open-api.guesty.com/oauth2/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'client_credentials',
+      scope: 'open-api',
+      client_id: CLIENT_ID,
+      client_secret: CLIENT_SECRET,
+    }),
+    cache: 'no-store',
+  }).catch((err) => {
+    throw new Error(`Guesty OAuth network error: ${err.message}`)
+  })
+
+  if (!res.ok) {
+    const body = await res.text()
+    throw new Error(`Guesty OAuth error ${res.status}: ${body}`)
+  }
+
+  const data = await res.json() as { access_token: string; expires_in: number }
+  tokenCache = {
+    token: data.access_token,
+    expiresAt: Date.now() + data.expires_in * 1000,
+  }
+
+  return tokenCache.token
+}
+
+// ─── Core fetch helper ─────────────────────────────────────────────────────
+
+async function guestyFetch<T>(
+  path: string,
+  options?: RequestInit & {
+    params?: Record<string, string | number | undefined>
+    revalidate?: number
+  }
+): Promise<T> {
+  const { params, revalidate = 300, ...fetchOptions } = options ?? {}
+
+  const token = await getAccessToken()
+
+  const url = new URL(`${BASE_URL}${path}`)
+  if (params) {
+    Object.entries(params).forEach(([k, v]) => {
+      if (v !== undefined) url.searchParams.set(k, String(v))
+    })
+  }
+
+  const res = await fetch(url.toString(), {
+    ...fetchOptions,
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      ...(fetchOptions.headers ?? {}),
+    },
+    next: { revalidate },
+  })
+
+  if (!res.ok) {
+    const body = await res.text()
+    throw new Error(`Guesty API error ${res.status} on ${path}: ${body}`)
+  }
+
+  return res.json() as Promise<T>
+}
+
+// ─── Types ─────────────────────────────────────────────────────────────────
+
+export interface GuestyReservation {
+  _id: string
+  listingId: string
+  status: string
+  checkIn: string   // ISO date
+  checkOut: string
+  nightsCount: number
+  guest: {
+    _id: string
+    fullName: string
+    email: string
+    phone: string
+    countryCode: string
+  }
+  guestsCount: number
+  money: {
+    totalPaid: number
+    hostPayout: number
+    currency: string
+  }
+  source: string   // 'Airbnb', 'Booking.com', 'Direct', etc.
+  createdAt: string
+  updatedAt: string
+}
+
+export interface GuestyReview {
+  _id: string
+  listingId: string
+  reservationId: string
+  publicReview: string
+  privateReview: string
+  hostResponse: string
+  rating: number           // overall 1-5
+  categoryRatings?: {
+    cleanliness?: number
+    communication?: number
+    checkIn?: number
+    accuracy?: number
+    location?: number
+    value?: number
+  }
+  reviewee: {
+    fullName: string
+  }
+  submittedAt: string
+  source: string
+}
+
+export interface GuestyListing {
+  _id: string
+  title: string
+  address: {
+    full: string
+    city: string
+    country: string
+  }
+  bedrooms: number
+  bathrooms: number
+  accommodates: number
+  pictures: Array<{ thumbnail: string; regular: string }>
+  publicDescription: { summary: string }
+}
+
+export interface GuestyCalendarDay {
+  date: string         // YYYY-MM-DD
+  status: 'available' | 'unavailable' | 'booked'
+  price: number
+  minNights: number
+  note?: string
+  reservationId?: string
+  blockReason?: string
+}
+
+export interface GuestyPaginatedResponse<T> {
+  results: T[]
+  total: number
+  skip: number
+  limit: number
+}
+
+// ─── Listings ──────────────────────────────────────────────────────────────
+
+export async function getListing(listingId: string): Promise<GuestyListing> {
+  return guestyFetch<GuestyListing>(`/listings/${listingId}`, { revalidate: 3600 })
+}
+
+export async function getListings(ids: string[]): Promise<GuestyListing[]> {
+  const res = await guestyFetch<GuestyPaginatedResponse<GuestyListing>>('/listings', {
+    params: { ids: ids.join(','), limit: 100 },
+    revalidate: 3600, // listings change rarely
+  })
+  return res.results
+}
+
+// ─── Reservations ──────────────────────────────────────────────────────────
+
+export async function getReservations(
+  listingId: string,
+  options?: {
+    status?: string
+    checkInFrom?: string   // YYYY-MM-DD
+    checkInTo?: string
+    limit?: number
+    skip?: number
+  }
+): Promise<{ reservations: GuestyReservation[]; total: number }> {
+  const res = await guestyFetch<GuestyPaginatedResponse<GuestyReservation>>('/reservations', {
+    params: {
+      listingId,
+      status: options?.status,
+      checkIn_gte: options?.checkInFrom,
+      checkIn_lte: options?.checkInTo,
+      limit: options?.limit ?? 50,
+      skip: options?.skip ?? 0,
+      fields: '_id listingId status checkIn checkOut nightsCount guest guestsCount money source createdAt updatedAt',
+    },
+    revalidate: 300,
+  })
+  return { reservations: res.results, total: res.total }
+}
+
+export async function getConfirmedReservations(
+  listingId: string,
+  from?: string,
+  to?: string
+): Promise<GuestyReservation[]> {
+  const { reservations } = await getReservations(listingId, {
+    status: 'confirmed',
+    checkInFrom: from,
+    checkInTo: to,
+    limit: 100,
+  })
+  return reservations
+}
+
+export async function getUpcomingReservations(listingId: string): Promise<GuestyReservation[]> {
+  const today = new Date().toISOString().split('T')[0]
+  const sixMonthsOut = new Date(Date.now() + 180 * 24 * 60 * 60 * 1000)
+    .toISOString()
+    .split('T')[0]
+  return getConfirmedReservations(listingId, today, sixMonthsOut)
+}
+
+// ─── Reviews ───────────────────────────────────────────────────────────────
+
+export async function getReviews(
+  listingId: string,
+  limit = 20
+): Promise<GuestyReview[]> {
+  const res = await guestyFetch<GuestyPaginatedResponse<GuestyReview>>('/reviews', {
+    params: { listingId, limit, sort: '-submittedAt' },
+    revalidate: 3600,
+  })
+  return res.results
+}
+
+export async function getReviewStats(listingId: string): Promise<{
+  count: number
+  averageRating: number
+  averageCleanliness: number
+  averageCommunication: number
+  averageValue: number
+}> {
+  const reviews = await getReviews(listingId, 100)
+  if (!reviews.length) {
+    return { count: 0, averageRating: 0, averageCleanliness: 0, averageCommunication: 0, averageValue: 0 }
+  }
+  const avg = (arr: number[]) => arr.reduce((a, b) => a + b, 0) / arr.length
+  return {
+    count: reviews.length,
+    averageRating: avg(reviews.map(r => r.rating)),
+    averageCleanliness: avg(reviews.filter(r => r.categoryRatings?.cleanliness).map(r => r.categoryRatings!.cleanliness!)),
+    averageCommunication: avg(reviews.filter(r => r.categoryRatings?.communication).map(r => r.categoryRatings!.communication!)),
+    averageValue: avg(reviews.filter(r => r.categoryRatings?.value).map(r => r.categoryRatings!.value!)),
+  }
+}
+
+// ─── Pricing Calendar ──────────────────────────────────────────────────────
+
+export async function getPricingCalendar(
+  listingId: string,
+  from: string,   // YYYY-MM-DD
+  to: string
+): Promise<GuestyCalendarDay[]> {
+  const res = await guestyFetch<{ days: GuestyCalendarDay[] }>(
+    `/listings/${listingId}/calendar`,
+    { params: { from, to }, revalidate: 900 }
+  )
+  return res.days
+}
+
+/**
+ * Returns pricing data for a named period (e.g. "Semana Santa", "Navidad").
+ * The AI uses this to answer "¿cuánto cuesta el apartamento en Semana Santa?"
+ */
+export async function getPricingForPeriod(
+  listingId: string,
+  checkIn: string,
+  checkOut: string
+): Promise<{
+  days: GuestyCalendarDay[]
+  available: boolean
+  avgNightlyRate: number
+  totalNights: number
+  estimatedTotal: number
+}> {
+  const days = await getPricingCalendar(listingId, checkIn, checkOut)
+  const available = days.every(d => d.status === 'available')
+  const bookedDays = days.filter(d => d.price > 0)
+  const avgNightlyRate = bookedDays.length
+    ? bookedDays.reduce((sum, d) => sum + d.price, 0) / bookedDays.length
+    : 0
+  const totalNights = days.length
+  const estimatedTotal = avgNightlyRate * totalNights
+
+  return { days, available, avgNightlyRate, totalNights, estimatedTotal }
+}
+
+// ─── Revenue summary ───────────────────────────────────────────────────────
+
+export async function getMonthlyRevenue(
+  listingId: string,
+  year: number,
+  month: number  // 1-12
+): Promise<{ revenue: number; reservationCount: number; currency: string }> {
+  const firstDay = `${year}-${String(month).padStart(2, '0')}-01`
+  const lastDay = new Date(year, month, 0).toISOString().split('T')[0]
+
+  const { reservations } = await getReservations(listingId, {
+    status: 'confirmed',
+    checkInFrom: firstDay,
+    checkInTo: lastDay,
+    limit: 100,
+  })
+
+  const revenue = reservations.reduce((sum, r) => sum + (r.money.hostPayout ?? 0), 0)
+  const currency = reservations[0]?.money.currency ?? 'USD'
+
+  return { revenue, reservationCount: reservations.length, currency }
+}

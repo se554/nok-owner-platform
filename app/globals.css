@@ -1,0 +1,25 @@
+@import "tailwindcss";
+
+/* NOK Brand Tokens */
+:root {
+  --nok-blue:       #0080C6;
+  --nok-blue-dark:  #0068A3;
+  --nok-blue-light: #E6F3FB;
+  --nok-black:      #1D1D1B;
+  --nok-white:      #F2F2F2;
+  --nok-gray-50:    #F7F7F7;
+  --nok-gray-100:   #EFEFEF;
+  --nok-gray-300:   #C8C8C8;
+  --nok-gray-500:   #8A8A8A;
+  --nok-gray-700:   #4A4A4A;
+
+  --background: #ffffff;
+  --foreground: #1D1D1B;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
