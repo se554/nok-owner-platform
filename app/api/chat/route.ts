@@ -61,17 +61,15 @@ export async function POST(req: Request) {
     return new Response('Forbidden', { status: 403 })
   }
 
-  const guestyListingId = property.guesty_listing_id ?? property.hostify_property_id ?? ''
-
   // ── Build tools with property context ─────────────────────────
   const tools = {
-    getUpcomingReservations: getUpcomingReservationsTool(guestyListingId),
-    getPricingForPeriod: getPricingForPeriodTool(guestyListingId),
-    getCalendar: getCalendarTool(guestyListingId),
-    getMonthlyRevenue: getMonthlyRevenueTool(guestyListingId),
+    getUpcomingReservations: getUpcomingReservationsTool(propertyId),
+    getPricingForPeriod: getPricingForPeriodTool(propertyId),
+    getCalendar: getCalendarTool(propertyId),
+    getMonthlyRevenue: getMonthlyRevenueTool(propertyId),
     getPropertyMetrics: getPropertyMetricsTool(propertyId),
-    getReviews: getReviewsTool(guestyListingId),
-    getReviewStats: getReviewStatsTool(guestyListingId),
+    getReviews: getReviewsTool(propertyId),
+    getReviewStats: getReviewStatsTool(propertyId),
     getLastCleaning: getLastCleaningTool(propertyId),
     getMaintenance: getMaintenanceTool(propertyId),
     getInventoryAlerts: getInventoryAlertsTool(propertyId),

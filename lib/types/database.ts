@@ -46,6 +46,10 @@ export interface Database {
           max_guests: number | null
           cover_image_url: string | null
           active: boolean
+          nok_commission_rate: number | null
+          cleaning_fee: number | null
+          cleaning_fee_currency: string | null
+          notion_id: string | null
           created_at: string
           updated_at: string
         }
@@ -65,6 +69,10 @@ export interface Database {
           max_guests?: number | null
           cover_image_url?: string | null
           active?: boolean
+          nok_commission_rate?: number | null
+          cleaning_fee?: number | null
+          cleaning_fee_currency?: string | null
+          notion_id?: string | null
           created_at?: string
           updated_at?: string
         }
