@@ -199,6 +199,10 @@ export interface GuestyCalendarDay {
   note?: string
   reservationId?: string
   blockReason?: string
+  // Wheelhouse fields (present when Wheelhouse is connected to Guesty)
+  suggestedPrice?: number       // Wheelhouse suggestion before any manual override
+  revenue?: number              // Expected revenue
+  basePriceOverride?: number    // Manually overridden price
 }
 
 export interface GuestyPaginatedResponse<T> {

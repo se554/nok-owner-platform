@@ -140,11 +140,13 @@ export async function POST(req: Request) {
     const days = await getPricingCalendar(guestyListingId, fmt(today), fmt(sixMonthsOut))
 
     for (const d of days) {
+      // Wheelhouse recommended rate — use suggestedPrice if available, fallback to price
+      const recommendedRate = (d as any).suggestedPrice ?? (d as any).revenue ?? d.price ?? null
       const row = {
         property_id: propertyId,
         calendar_date: d.date,
         base_rate: d.price ?? null,
-        recommended_rate: d.price ?? null,
+        recommended_rate: recommendedRate,
         is_available: d.status === 'available',
         is_blocked: d.status === 'unavailable',
         block_reason: d.blockReason ?? null,
