@@ -90,7 +90,9 @@ export async function POST(req: Request) {
       limit: 100,
     })
 
-    for (const r of reservations) {
+    // Filter to only this listing's reservations (Guesty API filter not always reliable)
+    const filtered = reservations.filter(r => r.listingId === guestyListingId)
+    for (const r of filtered) {
       const row = {
         property_id: propertyId,
         guesty_reservation_id: r._id,
@@ -120,8 +122,9 @@ export async function POST(req: Request) {
   // ── 2. Sync reviews ──────────────────────────────────────────
   try {
     const reviews = await getReviews(guestyListingId, 50)
+    const reviewList = Array.isArray(reviews) ? reviews : ((reviews as any)?.results ?? [])
 
-    for (const r of reviews) {
+    for (const r of reviewList) {
       const row = {
         property_id: propertyId,
         guesty_review_id: r._id,
