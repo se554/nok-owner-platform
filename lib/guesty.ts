@@ -199,8 +199,14 @@ export async function getReservations(
 ): Promise<{ reservations: GuestyReservation[]; total: number }> {
   const res = await guestyFetch<GuestyPaginatedResponse<GuestyReservation>>('/reservations', {
     params: {
-      listingId,
-      status: options?.status,
+      'filters[0][field]': 'listingId',
+      'filters[0][operator]': '$eq',
+      'filters[0][value]': listingId,
+      ...(options?.status ? {
+        'filters[1][field]': 'status',
+        'filters[1][operator]': '$eq',
+        'filters[1][value]': options.status,
+      } : {}),
       checkIn_gte: options?.checkInFrom,
       checkIn_lte: options?.checkInTo,
       limit: options?.limit ?? 50,
@@ -241,7 +247,7 @@ export async function getReviews(
   limit = 20
 ): Promise<GuestyReview[]> {
   const res = await guestyFetch<GuestyPaginatedResponse<GuestyReview>>('/reviews', {
-    params: { listingId, limit, sort: '-submittedAt' },
+    params: { listingId, limit },
     revalidate: 3600,
   })
   return res.results
@@ -275,11 +281,11 @@ export async function getPricingCalendar(
   from: string,   // YYYY-MM-DD
   to: string
 ): Promise<GuestyCalendarDay[]> {
-  const res = await guestyFetch<{ days: GuestyCalendarDay[] }>(
+  const res = await guestyFetch<{ days: GuestyCalendarDay[] } | GuestyCalendarDay[]>(
     `/listings/${listingId}/calendar`,
     { params: { from, to }, revalidate: 900 }
   )
-  return res.days
+  return Array.isArray(res) ? res : (res.days ?? [])
 }
 
 /**
