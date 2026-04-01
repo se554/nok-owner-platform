@@ -40,7 +40,7 @@ export default async function CalendarPage({ params, searchParams }: Props) {
     sb.from('reservations')
       .select('id, check_in, check_out, nights, guest_name, channel, status, num_guests, owner_revenue, currency, total_price')
       .eq('property_id', propertyId)
-      .neq('status', 'cancelled')
+      .eq('status', 'confirmed')
       .lte('check_in', to)
       .gte('check_out', from)
       .order('check_in'),

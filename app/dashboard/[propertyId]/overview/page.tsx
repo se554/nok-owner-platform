@@ -59,12 +59,12 @@ export default async function OverviewPage({ params }: Props) {
       .gte('check_in', new Date().toISOString().split('T')[0])
       .order('check_in', { ascending: true }).limit(3),
     sb.from('reservations').select('channel, owner_revenue, currency')
-      .eq('property_id', propertyId).neq('status', 'cancelled').gte('check_in', yearStart),
+      .eq('property_id', propertyId).eq('status', 'confirmed').gte('check_in', yearStart),
     sb.from('reservations').select('check_out')
-      .eq('property_id', propertyId).neq('status', 'cancelled')
+      .eq('property_id', propertyId).eq('status', 'confirmed')
       .gte('check_out', monthStart).lte('check_out', monthEnd),
     sb.from('reservations').select('owner_revenue, currency')
-      .eq('property_id', propertyId).neq('status', 'cancelled').gte('check_in', monthStart),
+      .eq('property_id', propertyId).eq('status', 'confirmed').gte('check_in', monthStart),
   ])
 
   const metrics             = metricsRes.data

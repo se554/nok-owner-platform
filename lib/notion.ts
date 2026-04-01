@@ -55,7 +55,11 @@ function parseApartamento(page: any): NotionApartamento {
 
   const name = extractText(props['Listing'] ?? props['Name'] ?? props['Nombre'] ?? props['nombre'])
   const guestyId = extractText(props['guesty_listing_id'] ?? props['Guesty Listing ID'] ?? props['guesty_id'])
-  const commission = extractNumber(props['Comision'] ?? props['Comisión'] ?? props['commission'])
+  const commissionRaw = extractNumber(props['Comision '] ?? props['Comision'] ?? props['Comisión'] ?? props['commission'])
+  // Notion stores as decimal (0.07 = 7%). Convert to percentage for display.
+  const commission = commissionRaw != null && commissionRaw > 0 && commissionRaw < 1
+    ? Math.round(commissionRaw * 100)
+    : commissionRaw
   const cleaningFee = extractNumber(
     props['Tarifa de Limpieza (a Propietario)'] ??
     props['Tarifa de Limpieza'] ??
