@@ -48,9 +48,7 @@ export default async function OverviewPage({ params }: Props) {
   const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`
   const monthEnd   = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()).padStart(2, '0')}`
 
-  const [metricsRes, cleaningsRes, upcomingRes, channelRes, checkoutsRes, monthResRes] = await Promise.all([
-    sb.from('property_metrics').select('*').eq('property_id', propertyId)
-      .order('metric_date', { ascending: false }).limit(1).single(),
+  const [cleaningsRes, upcomingRes, channelRes, checkoutsRes, monthResRes] = await Promise.all([
     sb.from('cleaning_records').select('completed_at, staff_name, status')
       .eq('property_id', propertyId).eq('status', 'completed')
       .order('completed_at', { ascending: false }).limit(1).single(),
@@ -60,16 +58,29 @@ export default async function OverviewPage({ params }: Props) {
       .order('check_in', { ascending: true }).limit(3),
     sb.from('reservations').select('channel, owner_revenue, currency')
       .eq('property_id', propertyId).eq('status', 'confirmed').gte('check_in', yearStart),
-    sb.from('reservations').select('check_out')
+    sb.from('reservations').select('check_in, check_out')
       .eq('property_id', propertyId).eq('status', 'confirmed')
-      .gte('check_out', monthStart).lte('check_out', monthEnd),
-    sb.from('reservations').select('owner_revenue, currency')
-      .eq('property_id', propertyId).eq('status', 'confirmed').gte('check_in', monthStart),
+      .lte('check_in', monthEnd).gte('check_out', monthStart),
+    sb.from('reservations').select('owner_revenue, nights, currency')
+      .eq('property_id', propertyId).eq('status', 'confirmed')
+      .gte('check_in', monthStart).lte('check_in', monthEnd),
   ])
 
-  const metrics             = metricsRes.data
   const lastCleaning        = cleaningsRes.data
   const upcomingReservations = upcomingRes.data ?? []
+
+  // Calculate metrics from reservations
+  const monthReservations = monthResRes.data ?? []
+  const totalBookedNights = monthReservations.reduce((s: number, r: any) => s + (r.nights ?? 0), 0)
+  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
+  const occupancyRate = daysInMonth > 0 ? Math.round((totalBookedNights / daysInMonth) * 100) : 0
+
+  // Calculate checkouts this month (reservations that check out within this month)
+  const checkoutReservations = checkoutsRes.data ?? []
+  const checkoutsThisMonth = checkoutReservations.filter((r: any) => {
+    const co = r.check_out
+    return co >= monthStart && co <= monthEnd
+  }).length
 
   // Channel breakdown (year to date)
   const channelMap: Record<string, { count: number; revenue: number }> = {}
@@ -90,10 +101,11 @@ export default async function OverviewPage({ params }: Props) {
   }
 
   // Financial summary
-  const grossRevenue   = (monthResRes.data ?? []).reduce((s, r) => s + (r.owner_revenue ?? 0), 0)
+  const grossRevenue   = monthReservations.reduce((s: number, r: any) => s + (r.owner_revenue ?? 0), 0)
+  const avgDailyRate   = totalBookedNights > 0 ? Math.round(grossRevenue / totalBookedNights) : 0
   const commRate       = (property.nok_commission_rate ?? 0) / 100
   const commAmount     = grossRevenue * commRate
-  const checkouts      = checkoutsRes.data?.length ?? 0
+  const checkouts      = checkoutsThisMonth
   let cleaningCostUSD  = 0
   if (property.cleaning_fee && checkouts > 0) {
     const raw = property.cleaning_fee as number
@@ -142,15 +154,15 @@ export default async function OverviewPage({ params }: Props) {
           <div className="flex flex-wrap gap-3 fade-up-delay-2">
             <StatPill
               label="Ingresos del mes"
-              value={metrics?.revenue_month ? fmt(metrics.revenue_month) : fmt(grossRevenue)}
+              value={fmt(grossRevenue)}
             />
             <StatPill
               label="Ocupación"
-              value={fmtPct(metrics?.occupancy_rate ?? null)}
+              value={fmtPct(occupancyRate)}
             />
             <StatPill
-              label="Reservas activas"
-              value={String(metrics?.active_reservations_count ?? upcomingReservations.length)}
+              label="Noches reservadas"
+              value={String(totalBookedNights)}
             />
           </div>
         </div>
@@ -161,10 +173,10 @@ export default async function OverviewPage({ params }: Props) {
 
         {/* Metrics row */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <MetricCard label="Ocupación del mes" value={fmtPct(metrics?.occupancy_rate ?? null)} sub="mes en curso" />
-          <MetricCard label="Ingresos del mes" value={metrics?.revenue_month ? fmt(metrics.revenue_month) : '—'} sub="netos propietario" />
-          <MetricCard label="Tarifa promedio" value={metrics?.avg_daily_rate ? fmt(metrics.avg_daily_rate) : '—'} sub="por noche" />
-          <MetricCard label="Noches reservadas" value={metrics?.active_reservations_count ? String(metrics.active_reservations_count) : '—'} sub="reservas activas" />
+          <MetricCard label="Ocupación del mes" value={fmtPct(occupancyRate)} sub="mes en curso" />
+          <MetricCard label="Ingresos del mes" value={fmt(grossRevenue)} sub="host payout (Guesty)" />
+          <MetricCard label="Tarifa promedio" value={avgDailyRate > 0 ? fmt(avgDailyRate) : '—'} sub="por noche" />
+          <MetricCard label="Noches reservadas" value={String(totalBookedNights)} sub={`${monthReservations.length} reservas`} />
         </div>
 
         {/* Financial summary */}
@@ -207,17 +219,7 @@ export default async function OverviewPage({ params }: Props) {
           </div>
         )}
 
-        {/* Reviews */}
-        {(metrics?.review_score_airbnb || metrics?.review_score_booking) && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {metrics?.review_score_airbnb && (
-              <ReviewCard platform="Airbnb" score={metrics.review_score_airbnb} count={metrics.review_count_airbnb} color="#ef4444" />
-            )}
-            {metrics?.review_score_booking && (
-              <ReviewCard platform="Booking.com" score={metrics.review_score_booking} count={metrics.review_count_booking} color="#3b82f6" />
-            )}
-          </div>
-        )}
+        {/* Reviews section removed — metrics table not populated */}
 
         {/* Channel breakdown */}
         {channels.length > 0 && (
@@ -334,8 +336,8 @@ export default async function OverviewPage({ params }: Props) {
                 <OpRow label="Limpiadora" value={lastCleaning.staff_name} />
               )}
               <OpRow
-                label="Reservas activas"
-                value={String(metrics?.active_reservations_count ?? '—')}
+                label="Reservas del mes"
+                value={String(monthReservations.length)}
               />
               {property.nok_commission_rate != null && (
                 <OpRow label="Comisión NOK" value={`${property.nok_commission_rate}%`} />

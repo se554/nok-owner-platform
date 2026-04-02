@@ -107,24 +107,26 @@ export async function POST(req: Request) {
   // ── 2. Sync reviews ──────────────────────────────────────────
   try {
     const reviews = await getReviews(guestyListingId, 50)
-    const reviewList = Array.isArray(reviews) ? reviews : ((reviews as any)?.results ?? [])
+    const reviewList = Array.isArray(reviews) ? reviews : ((reviews as any)?.results ?? (reviews as any)?.data ?? [])
 
     for (const r of reviewList) {
+      // Guesty Open API v1 nests review data inside rawReview
+      const raw = (r as any).rawReview ?? {}
       const row = {
         property_id: propertyId,
         guesty_review_id: r._id,
-        channel: r.source ?? null,
-        overall_score: r.rating ?? null,
-        cleanliness_score: r.categoryRatings?.cleanliness ?? null,
-        communication_score: r.categoryRatings?.communication ?? null,
-        checkin_score: r.categoryRatings?.checkIn ?? null,
-        accuracy_score: r.categoryRatings?.accuracy ?? null,
-        location_score: r.categoryRatings?.location ?? null,
-        value_score: r.categoryRatings?.value ?? null,
+        channel: (r as any).channelId ?? r.source ?? null,
+        overall_score: raw.overall_rating ?? r.rating ?? null,
+        cleanliness_score: raw.category_ratings_cleanliness ?? r.categoryRatings?.cleanliness ?? null,
+        communication_score: raw.category_ratings_communication ?? r.categoryRatings?.communication ?? null,
+        checkin_score: raw.category_ratings_checkin ?? r.categoryRatings?.checkIn ?? null,
+        accuracy_score: raw.category_ratings_accuracy ?? r.categoryRatings?.accuracy ?? null,
+        location_score: raw.category_ratings_location ?? r.categoryRatings?.location ?? null,
+        value_score: raw.category_ratings_value ?? r.categoryRatings?.value ?? null,
         guest_name: r.reviewee?.fullName ?? null,
-        reviewer_text: r.publicReview ?? null,
-        host_response: r.hostResponse ?? null,
-        submitted_at: r.submittedAt ?? null,
+        reviewer_text: raw.public_review ?? r.publicReview ?? null,
+        host_response: ((r as any).reviewReplies?.[0] as any)?.text ?? r.hostResponse ?? null,
+        submitted_at: raw.submitted_at ?? (r as any).createdAt ?? r.submittedAt ?? null,
         synced_at: new Date().toISOString(),
       }
 
