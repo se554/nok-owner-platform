@@ -174,7 +174,7 @@ export default async function OverviewPage({ params }: Props) {
         {/* Metrics row */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <MetricCard label="Ocupación del mes" value={fmtPct(occupancyRate)} sub="mes en curso" />
-          <MetricCard label="Ingresos del mes" value={fmt(grossRevenue)} sub="host payout (Guesty)" />
+          <MetricCard label="Ingresos del mes" value={fmt(grossRevenue)} sub="owner revenue" />
           <MetricCard label="Tarifa promedio" value={avgDailyRate > 0 ? fmt(avgDailyRate) : '—'} sub="por noche" />
           <MetricCard label="Noches reservadas" value={String(totalBookedNights)} sub={`${monthReservations.length} reservas`} />
         </div>
