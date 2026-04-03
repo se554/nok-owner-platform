@@ -5,7 +5,7 @@
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 
-const ADMIN_EMAILS = ['se@nok.rent']
+const ADMIN_EMAILS = ['se@nok.rent', 'msl@nok.rent']
 
 export function isAdminEmail(email: string | null | undefined): boolean {
   return !!email && ADMIN_EMAILS.includes(email)
