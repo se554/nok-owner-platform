@@ -1,6 +1,6 @@
-import { notFound, redirect } from 'next/navigation'
-import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { notFound } from 'next/navigation'
 import ChatInterface from '@/components/chat/ChatInterface'
+import { loadOwnerProperty } from '@/lib/admin'
 
 interface Props {
   params: Promise<{ propertyId: string }>
@@ -9,38 +9,17 @@ interface Props {
 export default async function ChatPage({ params }: Props) {
   const { propertyId } = await params
 
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
-
-  const sb = createServiceClient()
-
-  const { data: owner } = await sb
-    .from('owners')
-    .select('id, name')
-    .eq('supabase_user_id', user.id)
-    .single()
-
-  if (!owner) redirect('/login')
-
-  const { data: property } = await sb
-    .from('properties')
-    .select('id, name, city')
-    .eq('id', propertyId)
-    .eq('owner_id', owner.id)
-    .single()
-
+  const { owner, property, sb } = await loadOwnerProperty(propertyId)
   if (!property) notFound()
 
   const { data: history } = await sb
     .from('chat_messages')
     .select('role, content, created_at')
     .eq('property_id', propertyId)
-    .eq('owner_id', owner.id)
     .order('created_at', { ascending: true })
     .limit(20)
 
-  const initialMessages = (history ?? []).map(m => ({
+  const initialMessages = (history ?? []).map((m: any) => ({
     id: crypto.randomUUID(),
     role: m.role as 'user' | 'assistant',
     content: m.content,

@@ -9,7 +9,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   if (!user) redirect('/login')
 
   const serviceSupabase = createServiceClient()
-  const { data: owner } = await serviceSupabase
+  const { data: owner } = await (serviceSupabase as any)
     .from('owners')
     .select('*, properties(*)')
     .eq('supabase_user_id', user.id)
@@ -17,7 +17,21 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   if (!owner) redirect('/login')
 
-  const properties = (owner.properties ?? []).filter((p: { active: boolean }) => p.active)
+  // Admin can see ALL properties across all owners
+  const { isAdminEmail } = await import('@/lib/admin')
+  const isAdmin = isAdminEmail(owner.email)
+
+  let properties: any[]
+  if (isAdmin) {
+    const { data: allProps } = await (serviceSupabase as any)
+      .from('properties')
+      .select('*')
+      .eq('active', true)
+      .order('name')
+    properties = allProps ?? []
+  } else {
+    properties = (owner.properties ?? []).filter((p: { active: boolean }) => p.active)
+  }
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#1D1D1B' }}>

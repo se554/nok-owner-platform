@@ -1,7 +1,8 @@
-import { notFound, redirect } from 'next/navigation'
-import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { notFound } from 'next/navigation'
+import { createServiceClient } from '@/lib/supabase/server'
 import CalendarView from '@/components/calendar/CalendarView'
 import SyncButton from '@/components/calendar/SyncButton'
+import { loadOwnerProperty } from '@/lib/admin'
 
 interface Props {
   params: Promise<{ propertyId: string }>
@@ -12,16 +13,7 @@ export default async function CalendarPage({ params, searchParams }: Props) {
   const { propertyId } = await params
   const { month, year } = await searchParams
 
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
-
-  const sb = createServiceClient()
-
-  const { data: owner } = await sb.from('owners').select('id').eq('supabase_user_id', user.id).single()
-  if (!owner) redirect('/login')
-
-  const { data: property } = await sb.from('properties').select('*').eq('id', propertyId).eq('owner_id', owner.id).single()
+  const { property, sb } = await loadOwnerProperty(propertyId)
   if (!property) notFound()
 
   // Determine the month/year to show

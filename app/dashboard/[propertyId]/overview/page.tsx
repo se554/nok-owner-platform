@@ -1,7 +1,9 @@
-import { notFound, redirect } from 'next/navigation'
-import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { notFound } from 'next/navigation'
+import { createServiceClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { copToUSD } from '@/lib/trm'
+import SupportForm from '@/components/dashboard/SupportForm'
+import { loadOwnerProperty } from '@/lib/admin'
 
 interface Props {
   params: Promise<{ propertyId: string }>
@@ -20,27 +22,7 @@ function fmtPct(val: number | null) {
 export default async function OverviewPage({ params }: Props) {
   const { propertyId } = await params
 
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
-
-  const sb = createServiceClient()
-
-  const { data: owner } = await sb
-    .from('owners')
-    .select('id, name')
-    .eq('supabase_user_id', user.id)
-    .single()
-
-  if (!owner) redirect('/login')
-
-  const { data: property } = await sb
-    .from('properties')
-    .select('*')
-    .eq('id', propertyId)
-    .eq('owner_id', owner.id)
-    .single()
-
+  const { owner, property, sb } = await loadOwnerProperty(propertyId)
   if (!property) notFound()
 
   const now       = new Date()
@@ -348,6 +330,9 @@ export default async function OverviewPage({ params }: Props) {
             </div>
           </div>
         </div>
+
+        {/* Support form */}
+        <SupportForm propertyId={propertyId} />
 
         {/* NOK AI banner */}
         <div className="ai-banner-shimmer rounded-2xl p-7 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5">

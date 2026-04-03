@@ -63,7 +63,9 @@ export async function POST(req: Request) {
     const owner = ownerRes.data
     const property = propertyRes.data
 
-    if (property.owner_id !== owner.id) {
+    const ADMIN_EMAILS = ['se@nok.rent']
+    const isAdmin = ADMIN_EMAILS.includes(owner.email)
+    if (!isAdmin && property.owner_id !== owner.id) {
       return new Response(JSON.stringify({ error: 'Forbidden' }), {
         status: 403,
         headers: { 'Content-Type': 'application/json' },

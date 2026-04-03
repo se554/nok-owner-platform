@@ -1,5 +1,5 @@
-import { notFound, redirect } from 'next/navigation'
-import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { notFound } from 'next/navigation'
+import { loadOwnerProperty } from '@/lib/admin'
 
 interface Props {
   params: Promise<{ propertyId: string }>
@@ -8,27 +8,7 @@ interface Props {
 export default async function HistoryPage({ params }: Props) {
   const { propertyId } = await params
 
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
-
-  const serviceSupabase = createServiceClient()
-
-  const { data: owner } = await serviceSupabase
-    .from('owners')
-    .select('id')
-    .eq('supabase_user_id', user.id)
-    .single()
-
-  if (!owner) redirect('/login')
-
-  const { data: property } = await serviceSupabase
-    .from('properties')
-    .select('id, name')
-    .eq('id', propertyId)
-    .eq('owner_id', owner.id)
-    .single()
-
+  const { property, sb: serviceSupabase } = await loadOwnerProperty(propertyId)
   if (!property) notFound()
 
   const [cleaningsRes, maintenanceRes] = await Promise.all([
