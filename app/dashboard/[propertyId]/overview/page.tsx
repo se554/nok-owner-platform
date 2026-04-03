@@ -271,7 +271,7 @@ export default async function OverviewPage({ params }: Props) {
               </div>
             ) : (
               <div className="space-y-4">
-                {upcomingReservations.map((r, i) => (
+                {upcomingReservations.map((r: any, i: number) => (
                   <div
                     key={i}
                     className="flex items-center justify-between py-3 first:pt-0"

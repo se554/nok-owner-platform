@@ -31,8 +31,8 @@ export default async function HistoryPage({ params }: Props) {
 
   // Merge and sort by date
   const timeline = [
-    ...cleanings.map(c => ({ ...c, _type: 'cleaning' as const })),
-    ...maintenance.map(m => ({ ...m, _type: 'maintenance' as const })),
+    ...cleanings.map((c: Record<string, unknown>) => ({ ...c, _type: 'cleaning' as const })),
+    ...maintenance.map((m: Record<string, unknown>) => ({ ...m, _type: 'maintenance' as const })),
   ].sort((a, b) => {
     const dateA = new Date(a.scheduled_at ?? a.created_at).getTime()
     const dateB = new Date(b.scheduled_at ?? b.created_at).getTime()

@@ -12,6 +12,7 @@
     "@ai-sdk/anthropic": "^3.0.64",
     "@ai-sdk/react": "^3.0.143",
     "@anthropic-ai/sdk": "^0.80.0",
+    "@notionhq/client": "^5.16.0",
     "@react-pdf/renderer": "^4.3.2",
     "@supabase/ssr": "^0.10.0",
     "@supabase/supabase-js": "^2.101.0",

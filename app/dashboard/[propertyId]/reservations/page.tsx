@@ -63,7 +63,7 @@ export default async function ReservationsPage({ params }: Props) {
           </div>
         ) : (
           <div className="space-y-2">
-            {upcoming.map(r => (
+            {upcoming.map((r: any) => (
               <ReservationRow key={r.id} reservation={r} />
             ))}
           </div>
@@ -77,7 +77,7 @@ export default async function ReservationsPage({ params }: Props) {
             Reservas recientes
           </h2>
           <div className="space-y-2">
-            {past!.map(r => (
+            {past!.map((r: any) => (
               <ReservationRow key={r.id} reservation={r} past />
             ))}
           </div>

@@ -25,7 +25,7 @@ export default async function InventoryPage({ params }: Props) {
     .order('condition')
 
   const allItems = items ?? []
-  const alerts = allItems.filter(i => i.condition === 'poor' || i.condition === 'needs_replacement')
+  const alerts = allItems.filter((i: any) => i.condition === 'poor' || i.condition === 'needs_replacement')
 
   // Group by category
   const byCategory: Record<string, typeof allItems> = {}
@@ -46,7 +46,7 @@ export default async function InventoryPage({ params }: Props) {
             {alerts.length} ítem{alerts.length > 1 ? 's' : ''} requiere atención
           </p>
           <div className="space-y-1">
-            {alerts.map(item => (
+            {alerts.map((item: any) => (
               <p key={item.id} className="text-sm text-red-700">
                 • {item.name} — {CONDITION_CONFIG[item.condition ?? '']?.label ?? item.condition}
               </p>
@@ -67,7 +67,7 @@ export default async function InventoryPage({ params }: Props) {
                 {category}
               </h2>
               <div className="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100">
-                {categoryItems.map(item => {
+                {categoryItems.map((item: any) => {
                   const cond = CONDITION_CONFIG[item.condition ?? '']
                   const monthsOld = item.last_replaced_at
                     ? Math.floor((Date.now() - new Date(item.last_replaced_at).getTime()) / (1000 * 60 * 60 * 24 * 30))

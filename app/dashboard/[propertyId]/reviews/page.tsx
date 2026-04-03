@@ -49,7 +49,7 @@ export default async function ReviewsPage({ params }: Props) {
 
   const allReviews = reviews ?? []
   const avgOverall = allReviews.length
-    ? allReviews.reduce((s, r) => s + (r.overall_score ?? 0), 0) / allReviews.length
+    ? allReviews.reduce((s: number, r: any) => s + (r.overall_score ?? 0), 0) / allReviews.length
     : null
 
   return (
@@ -113,7 +113,7 @@ export default async function ReviewsPage({ params }: Props) {
         </div>
       ) : (
         <div className="space-y-3">
-          {allReviews.map(review => (
+          {allReviews.map((review: any) => (
             <div key={review.id} className="rounded-2xl p-5 nok-card">
               <div className="flex items-start justify-between mb-3">
                 <div>
