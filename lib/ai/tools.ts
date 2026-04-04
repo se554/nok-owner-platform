@@ -28,7 +28,7 @@ export const getUpcomingReservationsTool = (propertyId: string) =>
         .from('reservations')
         .select('check_in, check_out, nights, guest_name, channel, num_guests, owner_revenue, currency')
         .eq('property_id', propertyId)
-        .eq('status', 'confirmed')
+        .in('status', ['confirmed', 'checked_in', 'checked_out'])
         .gte('check_in', today)
         .order('check_in', { ascending: true })
         .limit(limit)

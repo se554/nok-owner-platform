@@ -35,16 +35,16 @@ export default async function OverviewPage({ params }: Props) {
       .eq('property_id', propertyId).eq('status', 'completed')
       .order('completed_at', { ascending: false }).limit(1).single(),
     sb.from('reservations').select('check_in, check_out, guest_name, channel, nights')
-      .eq('property_id', propertyId).eq('status', 'confirmed')
+      .eq('property_id', propertyId).in('status', ['confirmed', 'checked_in', 'checked_out'])
       .gte('check_in', new Date().toISOString().split('T')[0])
       .order('check_in', { ascending: true }).limit(3),
     sb.from('reservations').select('channel, owner_revenue, currency')
-      .eq('property_id', propertyId).eq('status', 'confirmed').gte('check_in', yearStart),
+      .eq('property_id', propertyId).in('status', ['confirmed', 'checked_in', 'checked_out']).gte('check_in', yearStart),
     sb.from('reservations').select('check_in, check_out')
-      .eq('property_id', propertyId).eq('status', 'confirmed')
+      .eq('property_id', propertyId).in('status', ['confirmed', 'checked_in', 'checked_out'])
       .lte('check_in', monthEnd).gte('check_out', monthStart),
     sb.from('reservations').select('owner_revenue, nights, currency')
-      .eq('property_id', propertyId).eq('status', 'confirmed')
+      .eq('property_id', propertyId).in('status', ['confirmed', 'checked_in', 'checked_out'])
       .gte('check_in', monthStart).lte('check_in', monthEnd),
   ])
 
