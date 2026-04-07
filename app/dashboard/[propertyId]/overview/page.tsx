@@ -3,10 +3,12 @@ import { createServiceClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { copToUSD } from '@/lib/trm'
 import SupportForm from '@/components/dashboard/SupportForm'
+import MonthPills from '@/components/dashboard/MonthPills'
 import { loadOwnerProperty } from '@/lib/admin'
 
 interface Props {
   params: Promise<{ propertyId: string }>
+  searchParams: Promise<{ month?: string }>
 }
 
 function fmt(amount: number | null, currency = 'USD') {
@@ -19,50 +21,111 @@ function fmtPct(val: number | null) {
   return `${val.toFixed(1)}%`
 }
 
-export default async function OverviewPage({ params }: Props) {
+function prorateForMonth(ownerRevenue: number, nights: number, checkIn: string, checkOut: string, monthStart: string, monthEnd: string): number {
+  if (nights <= 0 || ownerRevenue <= 0) return 0
+  const ci = new Date(checkIn + 'T00:00:00')
+  const co = new Date(checkOut + 'T00:00:00')
+  const ms = new Date(monthStart + 'T00:00:00')
+  const me = new Date(monthEnd + 'T00:00:00')
+  me.setDate(me.getDate() + 1) // monthEnd is inclusive
+
+  const overlapStart = ci > ms ? ci : ms
+  const overlapEnd = co < me ? co : me
+  const overlapDays = Math.max(0, Math.round((overlapEnd.getTime() - overlapStart.getTime()) / (1000*60*60*24)))
+
+  if (overlapDays >= nights) return ownerRevenue
+  return (ownerRevenue / nights) * overlapDays
+}
+
+function overlapNightsForMonth(checkIn: string, checkOut: string, monthStart: string, monthEnd: string): number {
+  const ci = new Date(checkIn + 'T00:00:00')
+  const co = new Date(checkOut + 'T00:00:00')
+  const ms = new Date(monthStart + 'T00:00:00')
+  const me = new Date(monthEnd + 'T00:00:00')
+  me.setDate(me.getDate() + 1) // monthEnd is inclusive
+
+  const overlapStart = ci > ms ? ci : ms
+  const overlapEnd = co < me ? co : me
+  return Math.max(0, Math.round((overlapEnd.getTime() - overlapStart.getTime()) / (1000*60*60*24)))
+}
+
+export default async function OverviewPage({ params, searchParams }: Props) {
   const { propertyId } = await params
+  const { month: monthParam } = await searchParams
 
   const { owner, property, sb } = await loadOwnerProperty(propertyId)
   if (!property) notFound()
 
   const now       = new Date()
-  const yearStart = `${now.getFullYear()}-01-01`
-  const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`
-  const monthEnd   = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()).padStart(2, '0')}`
+  // Selected month (from ?month=YYYY-MM) or current month
+  const selectedMonthKey = monthParam && /^\d{4}-\d{2}$/.test(monthParam)
+    ? monthParam
+    : `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+  const [selYear, selMonth] = selectedMonthKey.split('-').map(Number)
+  const displayYear = now.getFullYear()
+  const yearStart = `${displayYear}-01-01`
+  const monthStart = `${selectedMonthKey}-01`
+  const monthEnd   = `${selectedMonthKey}-${String(new Date(selYear, selMonth, 0).getDate()).padStart(2, '0')}`
+  const selectedMonthDate = new Date(selYear, selMonth - 1, 1)
+  const daysInSelectedMonth = new Date(selYear, selMonth, 0).getDate()
 
-  const [cleaningsRes, upcomingRes, channelRes, checkoutsRes, monthResRes] = await Promise.all([
+  // Also compute trailing 12 months for properties that may not have current-month data
+  const twelveMonthsAgo = new Date(now)
+  twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12)
+  const trailing12Start = twelveMonthsAgo.toISOString().split('T')[0]
+
+  const [cleaningsRes, upcomingRes, channelRes, checkoutsRes, monthResRes, ytdResRes, trailing12Res] = await Promise.all([
     sb.from('cleaning_records').select('completed_at, staff_name, status')
       .eq('property_id', propertyId).eq('status', 'completed')
       .order('completed_at', { ascending: false }).limit(1).single(),
     sb.from('reservations').select('check_in, check_out, guest_name, channel, nights')
       .eq('property_id', propertyId).in('status', ['confirmed', 'checked_in', 'checked_out'])
       .gte('check_in', new Date().toISOString().split('T')[0])
-      .order('check_in', { ascending: true }).limit(3),
+      .order('check_in', { ascending: true }).limit(5),
     sb.from('reservations').select('channel, owner_revenue, currency')
       .eq('property_id', propertyId).in('status', ['confirmed', 'checked_in', 'checked_out']).gte('check_in', yearStart),
     sb.from('reservations').select('check_in, check_out')
       .eq('property_id', propertyId).in('status', ['confirmed', 'checked_in', 'checked_out'])
       .lte('check_in', monthEnd).gte('check_out', monthStart),
-    sb.from('reservations').select('owner_revenue, nights, currency')
+    sb.from('reservations').select('owner_revenue, nights, currency, check_in, check_out')
       .eq('property_id', propertyId).in('status', ['confirmed', 'checked_in', 'checked_out'])
-      .gte('check_in', monthStart).lte('check_in', monthEnd),
+      .lte('check_in', monthEnd).gt('check_out', monthStart),
+    // Year-to-date reservations for YTD metrics
+    sb.from('reservations').select('owner_revenue, nights, currency, check_in, check_out')
+      .eq('property_id', propertyId).in('status', ['confirmed', 'checked_in', 'checked_out'])
+      .gte('check_in', yearStart),
+    // Trailing 12 months for occupancy calculation
+    sb.from('reservations').select('nights, check_in, check_out')
+      .eq('property_id', propertyId).in('status', ['confirmed', 'checked_in', 'checked_out'])
+      .gte('check_in', trailing12Start),
   ])
 
   const lastCleaning        = cleaningsRes.data
   const upcomingReservations = upcomingRes.data ?? []
 
-  // Calculate metrics from reservations
+  // ── Current month metrics (prorated) ──────────────────────────
   const monthReservations = monthResRes.data ?? []
-  const totalBookedNights = monthReservations.reduce((s: number, r: any) => s + (r.nights ?? 0), 0)
-  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
+  const totalBookedNights = monthReservations.reduce((s: number, r: any) =>
+    s + overlapNightsForMonth(r.check_in, r.check_out, monthStart, monthEnd), 0)
+  const daysInMonth = daysInSelectedMonth
   const occupancyRate = daysInMonth > 0 ? Math.round((totalBookedNights / daysInMonth) * 100) : 0
 
-  // Calculate checkouts this month (reservations that check out within this month)
   const checkoutReservations = checkoutsRes.data ?? []
   const checkoutsThisMonth = checkoutReservations.filter((r: any) => {
     const co = r.check_out
     return co >= monthStart && co <= monthEnd
   }).length
+
+  // ── Year-to-date metrics ──────────────────────────────────────
+  const ytdReservations = ytdResRes.data ?? []
+  const ytdRevenue = ytdReservations.reduce((s: number, r: any) => s + (r.owner_revenue ?? 0), 0)
+  const ytdNights = ytdReservations.reduce((s: number, r: any) => s + (r.nights ?? 0), 0)
+  const ytdAdr = ytdNights > 0 ? Math.round(ytdRevenue / ytdNights) : 0
+
+  // Trailing 12m occupancy
+  const trailing12 = trailing12Res.data ?? []
+  const trailing12Nights = trailing12.reduce((s: number, r: any) => s + (r.nights ?? 0), 0)
+  const trailing12Occupancy = Math.round((trailing12Nights / 365) * 100)
 
   // Channel breakdown (year to date)
   const channelMap: Record<string, { count: number; revenue: number }> = {}
@@ -76,14 +139,19 @@ export default async function OverviewPage({ params }: Props) {
   const totalRevenue = channels.reduce((s, [, v]) => s + v.revenue, 0)
 
   const CHANNEL_COLORS: Record<string, string> = {
+    airbnb2: '#ef4444',
     Airbnb: '#ef4444',
+    'booking.com': '#3b82f6',
     'Booking.com': '#3b82f6',
     Direct: '#0E6845',
+    direct: '#0E6845',
     Vrbo: '#8b5cf6',
+    owner: '#D6A700',
   }
 
-  // Financial summary
-  const grossRevenue   = monthReservations.reduce((s: number, r: any) => s + (r.owner_revenue ?? 0), 0)
+  // Financial summary — current month with proration
+  const grossRevenue   = monthReservations.reduce((s: number, r: any) =>
+    s + prorateForMonth(r.owner_revenue ?? 0, r.nights ?? 0, r.check_in, r.check_out, monthStart, monthEnd), 0)
   const avgDailyRate   = totalBookedNights > 0 ? Math.round(grossRevenue / totalBookedNights) : 0
   const commRate       = (property.nok_commission_rate ?? 0) / 100
   const commAmount     = grossRevenue * commRate
@@ -96,6 +164,20 @@ export default async function OverviewPage({ params }: Props) {
       : raw * checkouts
   }
   const netRevenue         = grossRevenue - commAmount - cleaningCostUSD
+
+  // YTD financial
+  const ytdCommAmount = ytdRevenue * commRate
+  // Count YTD checkouts
+  const ytdCheckouts = ytdReservations.length
+  let ytdCleaningCost = 0
+  if (property.cleaning_fee && ytdCheckouts > 0) {
+    const raw = property.cleaning_fee as number
+    ytdCleaningCost = property.cleaning_fee_currency === 'COP'
+      ? await copToUSD(raw * ytdCheckouts)
+      : raw * ytdCheckouts
+  }
+  const ytdNetRevenue = ytdRevenue - ytdCommAmount - ytdCleaningCost
+
   const hasFinancialData   = property.nok_commission_rate != null || property.cleaning_fee != null
   const ownerFirstName     = (owner as any).name?.split(' ')[0] ?? 'Propietario'
 
@@ -129,10 +211,10 @@ export default async function OverviewPage({ params }: Props) {
             className="text-base mb-10 fade-up-delay-1"
             style={{ color: 'rgba(242,242,242,0.45)' }}
           >
-            Aquí está el rendimiento de {property.name} este mes
+            Aquí está el rendimiento de {property.name}
           </p>
 
-          {/* Stat pills */}
+          {/* Stat pills — current month (prorated) */}
           <div className="flex flex-wrap gap-3 fade-up-delay-2">
             <StatPill
               label="Ingresos del mes"
@@ -146,6 +228,10 @@ export default async function OverviewPage({ params }: Props) {
               label="Noches reservadas"
               value={String(totalBookedNights)}
             />
+            <StatPill
+              label="ADR mes"
+              value={avgDailyRate > 0 ? fmt(avgDailyRate) : '—'}
+            />
           </div>
         </div>
       </section>
@@ -153,24 +239,28 @@ export default async function OverviewPage({ params }: Props) {
       {/* ── Content ───────────────────────────────────────────────── */}
       <div className="px-8 lg:px-16 py-10 max-w-6xl space-y-6">
 
-        {/* Metrics row */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <MetricCard label="Ocupación del mes" value={fmtPct(occupancyRate)} sub="mes en curso" />
-          <MetricCard label="Ingresos del mes" value={fmt(grossRevenue)} sub="owner revenue" />
-          <MetricCard label="Tarifa promedio" value={avgDailyRate > 0 ? fmt(avgDailyRate) : '—'} sub="por noche" />
-          <MetricCard label="Noches reservadas" value={String(totalBookedNights)} sub={`${monthReservations.length} reservas`} />
+        {/* Month selector */}
+        <div className="rounded-2xl p-5 nok-card">
+          <p className="text-xs uppercase tracking-widest mb-3" style={{ color: 'rgba(242,242,242,0.35)' }}>
+            Filtrar por mes — {displayYear}
+          </p>
+          <MonthPills year={displayYear} selected={selectedMonthKey} />
         </div>
 
-        {/* Financial summary */}
-        {hasFinancialData && (
-          <div
-            className="rounded-2xl p-6 nok-card"
-          >
-            <h2
-              className="font-serif text-2xl font-light text-[#F2F2F2] mb-6"
-            >
+        {/* Current month metrics (prorated) */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <MetricCard label="Ingresos del mes" value={fmt(grossRevenue)} sub={`${monthReservations.length} reservas`} />
+          <MetricCard label="Ocupación del mes" value={fmtPct(occupancyRate)} sub="mes en curso" />
+          <MetricCard label="Tarifa promedio" value={avgDailyRate > 0 ? fmt(avgDailyRate) : '—'} sub="por noche" />
+          <MetricCard label="Noches reservadas" value={String(totalBookedNights)} sub={`de ${daysInMonth} días`} />
+        </div>
+
+        {/* Financial summary — current month (prorated) */}
+        {(hasFinancialData || grossRevenue > 0) && (
+          <div className="rounded-2xl p-6 nok-card">
+            <h2 className="font-serif text-2xl font-light text-[#F2F2F2] mb-6">
               Resumen financiero —{' '}
-              {new Date(now.getFullYear(), now.getMonth()).toLocaleDateString('es-DO', { month: 'long', year: 'numeric' })}
+              {selectedMonthDate.toLocaleDateString('es-DO', { month: 'long', year: 'numeric' })}
             </h2>
             <div className="space-y-4">
               <FinRow label="Ingresos brutos" value={fmt(grossRevenue)} accent={false} />
@@ -195,6 +285,49 @@ export default async function OverviewPage({ params }: Props) {
                 <div className="flex items-center justify-between">
                   <span className="text-[#F2F2F2] font-medium">Ingreso neto propietario</span>
                   <span className="text-xl font-semibold" style={{ color: '#4ade80' }}>{fmt(netRevenue)}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* YTD Summary */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <MetricCard label={`Ingresos YTD ${now.getFullYear()}`} value={fmt(ytdRevenue)} sub={`${ytdReservations.length} reservas`} />
+          <MetricCard label="Ocupación 12 meses" value={fmtPct(trailing12Occupancy)} sub={`${trailing12Nights} noches`} />
+          <MetricCard label="ADR YTD" value={ytdAdr > 0 ? fmt(ytdAdr) : '—'} sub="tarifa promedio neta" />
+          <MetricCard label="Reservas YTD" value={String(ytdReservations.length)} sub={`${ytdNights} noches totales`} />
+        </div>
+
+        {/* Financial summary — YTD */}
+        {(hasFinancialData || ytdRevenue > 0) && (
+          <div className="rounded-2xl p-6 nok-card">
+            <h2 className="font-serif text-2xl font-light text-[#F2F2F2] mb-6">
+              Resumen financiero — YTD {now.getFullYear()}
+            </h2>
+            <div className="space-y-4">
+              <FinRow label="Ingresos brutos" value={fmt(ytdRevenue)} accent={false} />
+              {property.nok_commission_rate != null && (
+                <FinRow
+                  label={`Comisión NOK (${property.nok_commission_rate}%)`}
+                  value={`− ${fmt(ytdCommAmount)}`}
+                  deduct
+                />
+              )}
+              {property.cleaning_fee != null && (
+                <FinRow
+                  label={`Limpieza (${ytdCheckouts} checkout${ytdCheckouts !== 1 ? 's' : ''})`}
+                  value={`− ${fmt(ytdCleaningCost)}`}
+                  deduct
+                />
+              )}
+              <div
+                className="pt-4 mt-1"
+                style={{ borderTop: '1px solid rgba(242,242,242,0.07)' }}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-[#F2F2F2] font-medium">Ingreso neto propietario YTD</span>
+                  <span className="text-xl font-semibold" style={{ color: '#4ade80' }}>{fmt(ytdNetRevenue)}</span>
                 </div>
               </div>
             </div>
@@ -320,6 +453,10 @@ export default async function OverviewPage({ params }: Props) {
               <OpRow
                 label="Reservas del mes"
                 value={String(monthReservations.length)}
+              />
+              <OpRow
+                label={`Reservas YTD ${now.getFullYear()}`}
+                value={String(ytdReservations.length)}
               />
               {property.nok_commission_rate != null && (
                 <OpRow label="Comisión NOK" value={`${property.nok_commission_rate}%`} />

@@ -110,11 +110,13 @@ export default function TopNav({ owner, properties }: TopNavProps) {
 
             {showPropMenu && (
               <div
-                className="absolute top-full left-0 mt-2 rounded-xl overflow-hidden z-50 min-w-52"
+                className="absolute top-full left-0 mt-2 rounded-xl z-50 min-w-52"
                 style={{
                   backgroundColor: '#1E1E1C',
                   border: '1px solid rgba(242,242,242,0.08)',
                   boxShadow: '0 16px 48px rgba(0,0,0,0.5)',
+                  maxHeight: '70vh',
+                  overflowY: 'auto',
                 }}
               >
                 {properties.map(p => (
