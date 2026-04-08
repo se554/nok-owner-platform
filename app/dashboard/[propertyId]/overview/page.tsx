@@ -74,7 +74,13 @@ export default async function OverviewPage({ params, searchParams }: Props) {
   twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12)
   const trailing12Start = twelveMonthsAgo.toISOString().split('T')[0]
 
-  const [cleaningsRes, upcomingRes, channelRes, checkoutsRes, monthResRes, ytdResRes, trailing12Res] = await Promise.all([
+  // YTD list of months (e.g. 2026-01..2026-04)
+  const ytdMonthKeys: string[] = []
+  for (let m = 1; m <= now.getMonth() + 1; m++) {
+    ytdMonthKeys.push(`${displayYear}-${String(m).padStart(2, '0')}`)
+  }
+
+  const [cleaningsRes, upcomingRes, channelRes, checkoutsRes, monthResRes, ytdResRes, trailing12Res, monthUtilRes, ytdUtilRes] = await Promise.all([
     sb.from('cleaning_records').select('completed_at, staff_name, status')
       .eq('property_id', propertyId).eq('status', 'completed')
       .order('completed_at', { ascending: false }).limit(1).single(),
@@ -87,17 +93,23 @@ export default async function OverviewPage({ params, searchParams }: Props) {
     sb.from('reservations').select('check_in, check_out')
       .eq('property_id', propertyId).in('status', ['confirmed', 'checked_in', 'checked_out'])
       .lte('check_in', monthEnd).gte('check_out', monthStart),
-    sb.from('reservations').select('owner_revenue, nights, currency, check_in, check_out')
+    sb.from('reservations').select('owner_revenue, nights, currency, check_in, check_out, channel')
       .eq('property_id', propertyId).in('status', ['confirmed', 'checked_in', 'checked_out'])
       .lte('check_in', monthEnd).gt('check_out', monthStart),
     // Year-to-date reservations for YTD metrics
-    sb.from('reservations').select('owner_revenue, nights, currency, check_in, check_out')
+    sb.from('reservations').select('owner_revenue, nights, currency, check_in, check_out, channel')
       .eq('property_id', propertyId).in('status', ['confirmed', 'checked_in', 'checked_out'])
       .gte('check_in', yearStart),
     // Trailing 12 months for occupancy calculation
     sb.from('reservations').select('nights, check_in, check_out')
       .eq('property_id', propertyId).in('status', ['confirmed', 'checked_in', 'checked_out'])
       .gte('check_in', trailing12Start),
+    // Utility costs for selected month
+    sb.from('utility_costs').select('utility_type, amount, currency, month, reference')
+      .eq('property_id', propertyId).eq('month', selectedMonthKey),
+    // Utility costs YTD
+    sb.from('utility_costs').select('utility_type, amount, currency, month')
+      .eq('property_id', propertyId).in('month', ytdMonthKeys),
   ])
 
   const lastCleaning        = cleaningsRes.data
@@ -163,7 +175,32 @@ export default async function OverviewPage({ params, searchParams }: Props) {
       ? await copToUSD(raw * checkouts)
       : raw * checkouts
   }
-  const netRevenue         = grossRevenue - commAmount - cleaningCostUSD
+
+  // ── Direct booking commission (10% on direct/owner reservations) ──
+  const DIRECT_RATE = 0.10
+  function isDirect(ch: string | null | undefined) {
+    const c = (ch ?? '').toLowerCase()
+    return c.includes('direct') || c === 'owner' || c === 'manual' || c.includes('website')
+  }
+  const directBookingCommission = monthReservations.reduce((s: number, r: any) => {
+    if (!isDirect(r.channel)) return s
+    const pr = prorateForMonth(r.owner_revenue ?? 0, r.nights ?? 0, r.check_in, r.check_out, monthStart, monthEnd)
+    return s + (pr > 0 ? pr * DIRECT_RATE : 0)
+  }, 0)
+
+  // ── Utilities for current month ──
+  const monthUtilRows = monthUtilRes.data ?? []
+  const utilitiesByType: Record<string, { amount: number; currency: string; reference?: string }[]> = {}
+  let monthUtilitiesUSD = 0
+  for (const u of monthUtilRows as any[]) {
+    const amt = Number(u.amount) || 0
+    const usd = (u.currency || 'COP').toUpperCase() === 'USD' ? amt : await copToUSD(amt)
+    monthUtilitiesUSD += usd
+    if (!utilitiesByType[u.utility_type]) utilitiesByType[u.utility_type] = []
+    utilitiesByType[u.utility_type].push({ amount: amt, currency: u.currency, reference: u.reference })
+  }
+
+  const netRevenue = grossRevenue - commAmount - cleaningCostUSD - directBookingCommission - monthUtilitiesUSD
 
   // YTD financial
   const ytdCommAmount = ytdRevenue * commRate
@@ -176,7 +213,23 @@ export default async function OverviewPage({ params, searchParams }: Props) {
       ? await copToUSD(raw * ytdCheckouts)
       : raw * ytdCheckouts
   }
-  const ytdNetRevenue = ytdRevenue - ytdCommAmount - ytdCleaningCost
+
+  // YTD direct booking commission
+  const ytdDirectCommission = ytdReservations.reduce((s: number, r: any) => {
+    if (!isDirect(r.channel)) return s
+    return s + ((r.owner_revenue ?? 0) * DIRECT_RATE)
+  }, 0)
+
+  // YTD utilities
+  const ytdUtilRows = ytdUtilRes.data ?? []
+  let ytdUtilitiesUSD = 0
+  for (const u of ytdUtilRows as any[]) {
+    const amt = Number(u.amount) || 0
+    const usd = (u.currency || 'COP').toUpperCase() === 'USD' ? amt : await copToUSD(amt)
+    ytdUtilitiesUSD += usd
+  }
+
+  const ytdNetRevenue = ytdRevenue - ytdCommAmount - ytdCleaningCost - ytdDirectCommission - ytdUtilitiesUSD
 
   const hasFinancialData   = property.nok_commission_rate != null || property.cleaning_fee != null
   const ownerFirstName     = (owner as any).name?.split(' ')[0] ?? 'Propietario'
@@ -278,6 +331,20 @@ export default async function OverviewPage({ params, searchParams }: Props) {
                   deduct
                 />
               )}
+              {directBookingCommission > 0 && (
+                <FinRow
+                  label="Comisión Reserva Directa (10%)"
+                  value={`− ${fmt(directBookingCommission)}`}
+                  deduct
+                />
+              )}
+              {monthUtilitiesUSD > 0 && (
+                <FinRow
+                  label="Utilities (servicios públicos)"
+                  value={`− ${fmt(monthUtilitiesUSD)}`}
+                  deduct
+                />
+              )}
               <div
                 className="pt-4 mt-1"
                 style={{ borderTop: '1px solid rgba(242,242,242,0.07)' }}
@@ -286,6 +353,56 @@ export default async function OverviewPage({ params, searchParams }: Props) {
                   <span className="text-[#F2F2F2] font-medium">Ingreso neto propietario</span>
                   <span className="text-xl font-semibold" style={{ color: '#4ade80' }}>{fmt(netRevenue)}</span>
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Utilities breakdown — current month */}
+        {Object.keys(utilitiesByType).length > 0 && (
+          <div className="rounded-2xl p-6 nok-card">
+            <h2 className="font-serif text-2xl font-light text-[#F2F2F2] mb-2">
+              Servicios públicos —{' '}
+              {selectedMonthDate.toLocaleDateString('es-DO', { month: 'long', year: 'numeric' })}
+            </h2>
+            <p className="text-xs mb-5" style={{ color: 'rgba(242,242,242,0.4)' }}>
+              Detalle de cada utility pagado este mes para tu apartamento
+            </p>
+            <div className="space-y-3">
+              {Object.entries(utilitiesByType).map(([type, items]) => {
+                const totalCop = items.filter(i => (i.currency || 'COP').toUpperCase() === 'COP').reduce((s, i) => s + i.amount, 0)
+                const totalUsd = items.filter(i => (i.currency || 'COP').toUpperCase() === 'USD').reduce((s, i) => s + i.amount, 0)
+                return (
+                  <div key={type} className="flex items-center justify-between py-2"
+                    style={{ borderBottom: '1px solid rgba(242,242,242,0.05)' }}>
+                    <div>
+                      <p className="text-sm font-medium text-[#F2F2F2]">{type}</p>
+                      {items[0]?.reference && (
+                        <p className="text-xs mt-0.5" style={{ color: 'rgba(242,242,242,0.35)' }}>
+                          Cuenta: {items[0].reference}
+                        </p>
+                      )}
+                    </div>
+                    <div className="text-right">
+                      {totalCop > 0 && (
+                        <p className="text-sm text-[#F2F2F2] tabular-nums">
+                          {new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(totalCop)}
+                        </p>
+                      )}
+                      {totalUsd > 0 && (
+                        <p className="text-sm text-[#F2F2F2] tabular-nums">{fmt(totalUsd)}</p>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+              <div className="pt-3 flex items-center justify-between">
+                <span className="text-sm font-medium" style={{ color: 'rgba(242,242,242,0.7)' }}>
+                  Total servicios (USD)
+                </span>
+                <span className="text-base font-semibold" style={{ color: '#4ade80' }}>
+                  {fmt(monthUtilitiesUSD)}
+                </span>
               </div>
             </div>
           </div>
@@ -318,6 +435,20 @@ export default async function OverviewPage({ params, searchParams }: Props) {
                 <FinRow
                   label={`Limpieza (${ytdCheckouts} checkout${ytdCheckouts !== 1 ? 's' : ''})`}
                   value={`− ${fmt(ytdCleaningCost)}`}
+                  deduct
+                />
+              )}
+              {ytdDirectCommission > 0 && (
+                <FinRow
+                  label="Comisión Reserva Directa (10%)"
+                  value={`− ${fmt(ytdDirectCommission)}`}
+                  deduct
+                />
+              )}
+              {ytdUtilitiesUSD > 0 && (
+                <FinRow
+                  label="Utilities (servicios públicos)"
+                  value={`− ${fmt(ytdUtilitiesUSD)}`}
                   deduct
                 />
               )}
