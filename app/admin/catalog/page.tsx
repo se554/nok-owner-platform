@@ -116,7 +116,7 @@ export default function AdminCatalogPage() {
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
         <div>
-          <span className="text-xl font-bold tracking-widest mr-3">NOK</span>
+          <img src="/nok_negro.png" alt="NOK" className="h-6 mr-3 inline-block" />
           <span className="text-gray-400 text-sm">/ Admin / Catálogo</span>
         </div>
         <button

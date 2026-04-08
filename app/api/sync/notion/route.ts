@@ -23,6 +23,13 @@ import { getAllApartamentos } from '@/lib/notion'
 const SYNC_SECRET = process.env.SYNC_SECRET ?? ''
 
 export async function POST(req: Request) {
+  // ⚠️ DISABLED 2026-04-08 — Supabase is now the source of truth.
+  // Master data is managed via nok-hub /master module. Notion is no longer synced
+  // to avoid overwriting edits made in the master dashboard.
+  return NextResponse.json({
+    error: 'Notion sync is disabled. Use nok-hub /master to edit properties.',
+  }, { status: 410 })
+
   // Allow internal cron calls via secret header
   const internalCall = SYNC_SECRET && req.headers.get('x-sync-secret') === SYNC_SECRET
 

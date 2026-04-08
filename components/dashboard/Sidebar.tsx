@@ -24,6 +24,7 @@ const navItems = (propertyId: string) => [
 const adminItems = [
   { label: 'Cotizaciones', href: '/admin/onboarding', icon: '📋' },
   { label: 'Catálogo', href: '/admin/catalog', icon: '🛍️' },
+  { label: 'Apt Setup', href: '/apt-setup', icon: '🏠' },
   { label: 'Nueva cotización', href: '/onboarding', icon: '➕' },
 ]
 

@@ -239,25 +239,44 @@ export default function CalendarView({ propertyId, year, month, reservations, pr
                     }}
                   >
                     <p className="text-[10px] font-medium truncate leading-tight" style={{ color: channelStyle.text }}>
-                      {reservation.guest_name ?? 'Huésped'}
+                      {reservation.guest_name || 'Huésped'}
                     </p>
                     {isCheckIn && (
-                      <p className="text-[9px] leading-tight mt-0.5" style={{ color: 'rgba(242,242,242,0.4)' }}>
-                        {reservation.nights}n
-                      </p>
+                      <>
+                        <p className="text-[9px] leading-tight mt-0.5" style={{ color: 'rgba(242,242,242,0.4)' }}>
+                          {reservation.nights}n · {reservation.channel ? reservation.channel.charAt(0).toUpperCase() + reservation.channel.slice(1) : ''}
+                        </p>
+                        {reservation.owner_revenue ? (
+                          <p className="text-[9px] font-semibold leading-tight mt-0.5" style={{ color: 'rgba(74,222,128,0.8)' }}>
+                            {fmt(reservation.owner_revenue, reservation.currency ?? 'USD')}
+                          </p>
+                        ) : null}
+                      </>
                     )}
                   </div>
                 )}
 
-                {/* Rate */}
-                {!reservation && price?.base_rate && (
+                {/* Rate — show on available days */}
+                {!reservation && price && !price.is_blocked && (
                   <div className="mt-auto">
-                    <p className="text-[10px] font-semibold" style={{ color: 'rgba(214,167,0,0.8)' }}>
-                      {fmt(price.base_rate, price.currency ?? 'USD')}
-                    </p>
+                    {price.base_rate ? (
+                      <p className="text-[10px] font-semibold" style={{ color: 'rgba(214,167,0,0.8)' }}>
+                        {fmt(price.base_rate, price.currency ?? 'USD')}
+                      </p>
+                    ) : (
+                      <p className="text-[9px]" style={{ color: 'rgba(242,242,242,0.2)' }}>
+                        Disponible
+                      </p>
+                    )}
                     {price.min_stay_nights && price.min_stay_nights > 1 && (
                       <p className="text-[9px]" style={{ color: 'rgba(242,242,242,0.25)' }}>{price.min_stay_nights}n mín</p>
                     )}
+                  </div>
+                )}
+                {/* No pricing data, no reservation — show available */}
+                {!reservation && !price && !isPast && (
+                  <div className="mt-auto">
+                    <p className="text-[9px]" style={{ color: 'rgba(242,242,242,0.15)' }}>Disponible</p>
                   </div>
                 )}
 
@@ -287,6 +306,70 @@ export default function CalendarView({ propertyId, year, month, reservations, pr
           <span className="text-xs" style={{ color: 'rgba(242,242,242,0.4)' }}>Otro</span>
         </div>
       </div>
+
+      {/* Reservation list for the month */}
+      {reservations.length > 0 && (
+        <div className="mt-8">
+          <h3 className="font-serif text-lg font-light text-[#F2F2F2] mb-4">
+            Reservas del mes ({reservations.length})
+          </h3>
+          <div className="space-y-2">
+            {[...reservations]
+              .sort((a, b) => a.check_in.localeCompare(b.check_in))
+              .map((r) => {
+                const ch = getChannelStyle(r.channel)
+                const checkInDate = new Date(r.check_in + 'T00:00:00')
+                const checkOutDate = new Date(r.check_out + 'T00:00:00')
+                const fmtDate = (d: Date) => d.toLocaleDateString('es-DO', { day: 'numeric', month: 'short' })
+                return (
+                  <div
+                    key={r.id}
+                    onClick={() => setSelectedReservation(r)}
+                    className="rounded-xl p-4 flex items-center gap-4 cursor-pointer transition-all duration-150 hover:scale-[1.01]"
+                    style={{
+                      backgroundColor: '#141413',
+                      border: '1px solid rgba(242,242,242,0.07)',
+                      borderLeft: `3px solid ${ch.border}`,
+                    }}
+                  >
+                    {/* Guest + Channel */}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-[#F2F2F2] truncate">
+                        {r.guest_name || 'Huésped'}
+                      </p>
+                      <p className="text-xs mt-0.5 capitalize" style={{ color: ch.text }}>
+                        {r.channel ?? 'Desconocido'}
+                      </p>
+                    </div>
+                    {/* Dates */}
+                    <div className="text-right shrink-0">
+                      <p className="text-xs text-[#F2F2F2]/60">
+                        {fmtDate(checkInDate)} → {fmtDate(checkOutDate)}
+                      </p>
+                      <p className="text-[10px] mt-0.5" style={{ color: 'rgba(242,242,242,0.3)' }}>
+                        {r.nights ?? '—'} noches · {r.num_guests ?? '—'} huéspedes
+                      </p>
+                    </div>
+                    {/* Revenue */}
+                    <div className="text-right shrink-0 ml-2">
+                      {r.owner_revenue ? (
+                        <p className="text-sm font-semibold" style={{ color: '#4ade80' }}>
+                          {fmt(r.owner_revenue, r.currency ?? 'USD')}
+                        </p>
+                      ) : r.total_price ? (
+                        <p className="text-sm font-medium text-[#F2F2F2]/60">
+                          {fmt(r.total_price, r.currency ?? 'USD')}
+                        </p>
+                      ) : (
+                        <p className="text-sm text-[#F2F2F2]/30">—</p>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+          </div>
+        </div>
+      )}
 
       {/* Reservation detail modal */}
       {selectedReservation && (
