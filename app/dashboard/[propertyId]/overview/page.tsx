@@ -321,7 +321,7 @@ export default async function OverviewPage({ params, searchParams }: Props) {
               {selectedMonthDate.toLocaleDateString('es-DO', { month: 'long', year: 'numeric' })}
             </h2>
             <div className="space-y-4">
-              <FinRow label="Ingresos brutos" value={fmt(grossRevenue)} accent={false} />
+              <FinRow label="Ingresos después de comisiones de canal" value={fmt(grossRevenue)} accent={false} />
               {property.nok_commission_rate != null && (
                 <FinRow
                   label={`Comisión NOK (${property.nok_commission_rate}%)`}
@@ -428,7 +428,7 @@ export default async function OverviewPage({ params, searchParams }: Props) {
               Resumen financiero — YTD {now.getFullYear()}
             </h2>
             <div className="space-y-4">
-              <FinRow label="Ingresos brutos" value={fmt(ytdRevenue)} accent={false} />
+              <FinRow label="Ingresos después de comisiones de canal" value={fmt(ytdRevenue)} accent={false} />
               {property.nok_commission_rate != null && (
                 <FinRow
                   label={`Comisión NOK (${property.nok_commission_rate}%)`}
