@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation'
 import { createServiceClient } from '@/lib/supabase/server'
 import Link from 'next/link'
-import { copToUSD } from '@/lib/trm'
+import { copToUSD, getUSDtoCOPRate } from '@/lib/trm'
 import SupportForm from '@/components/dashboard/SupportForm'
 import MonthPills from '@/components/dashboard/MonthPills'
 import { loadOwnerProperty } from '@/lib/admin'
@@ -112,6 +112,11 @@ export default async function OverviewPage({ params, searchParams }: Props) {
       .eq('property_id', propertyId).in('month', ytdMonthKeys),
   ])
 
+  // Live TRM (cached 24h) — used to convert any COP reservation to USD
+  const trm = await getUSDtoCOPRate()
+  const toUSD = (amount: number, currency: string | null | undefined) =>
+    (currency || 'USD').toUpperCase() === 'COP' ? amount / trm : amount
+
   const lastCleaning        = cleaningsRes.data
   const upcomingReservations = upcomingRes.data ?? []
 
@@ -130,7 +135,7 @@ export default async function OverviewPage({ params, searchParams }: Props) {
 
   // ── Year-to-date metrics ──────────────────────────────────────
   const ytdReservations = ytdResRes.data ?? []
-  const ytdRevenue = ytdReservations.reduce((s: number, r: any) => s + (r.owner_revenue ?? 0), 0)
+  const ytdRevenue = ytdReservations.reduce((s: number, r: any) => s + toUSD(r.owner_revenue ?? 0, r.currency), 0)
   const ytdNights = ytdReservations.reduce((s: number, r: any) => s + (r.nights ?? 0), 0)
   const ytdAdr = ytdNights > 0 ? Math.round(ytdRevenue / ytdNights) : 0
 
@@ -145,7 +150,7 @@ export default async function OverviewPage({ params, searchParams }: Props) {
     const ch = r.channel ?? 'Otro'
     if (!channelMap[ch]) channelMap[ch] = { count: 0, revenue: 0 }
     channelMap[ch].count++
-    channelMap[ch].revenue += r.owner_revenue ?? 0
+    channelMap[ch].revenue += toUSD(r.owner_revenue ?? 0, r.currency)
   }
   const channels = Object.entries(channelMap).sort((a, b) => b[1].revenue - a[1].revenue)
   const totalRevenue = channels.reduce((s, [, v]) => s + v.revenue, 0)
@@ -163,7 +168,7 @@ export default async function OverviewPage({ params, searchParams }: Props) {
 
   // Financial summary — current month with proration
   const grossRevenue   = monthReservations.reduce((s: number, r: any) =>
-    s + prorateForMonth(r.owner_revenue ?? 0, r.nights ?? 0, r.check_in, r.check_out, monthStart, monthEnd), 0)
+    s + prorateForMonth(toUSD(r.owner_revenue ?? 0, r.currency), r.nights ?? 0, r.check_in, r.check_out, monthStart, monthEnd), 0)
   const avgDailyRate   = totalBookedNights > 0 ? Math.round(grossRevenue / totalBookedNights) : 0
   const commRate       = (property.nok_commission_rate ?? 0) / 100
   const commAmount     = grossRevenue * commRate
@@ -184,7 +189,7 @@ export default async function OverviewPage({ params, searchParams }: Props) {
   }
   const directBookingCommission = monthReservations.reduce((s: number, r: any) => {
     if (!isDirect(r.channel)) return s
-    const pr = prorateForMonth(r.owner_revenue ?? 0, r.nights ?? 0, r.check_in, r.check_out, monthStart, monthEnd)
+    const pr = prorateForMonth(toUSD(r.owner_revenue ?? 0, r.currency), r.nights ?? 0, r.check_in, r.check_out, monthStart, monthEnd)
     return s + (pr > 0 ? pr * DIRECT_RATE : 0)
   }, 0)
 
@@ -217,7 +222,7 @@ export default async function OverviewPage({ params, searchParams }: Props) {
   // YTD direct booking commission
   const ytdDirectCommission = ytdReservations.reduce((s: number, r: any) => {
     if (!isDirect(r.channel)) return s
-    return s + ((r.owner_revenue ?? 0) * DIRECT_RATE)
+    return s + (toUSD(r.owner_revenue ?? 0, r.currency) * DIRECT_RATE)
   }, 0)
 
   // YTD utilities
