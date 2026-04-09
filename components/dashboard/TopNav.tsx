@@ -46,7 +46,11 @@ export default function TopNav({ owner, properties, groups = [] }: TopNavProps) 
   const activeGroupId = groupMatch?.[1]
   const activeGroup = groups.find(g => g.id === activeGroupId)
   const match = pathname.match(/\/dashboard\/([^\/]+)/)
-  const activePropertyId = !activeGroupId ? (match?.[1] ?? properties[0]?.id) : undefined
+  const rawId = match?.[1]
+  const reserved = ['analytics', 'group']
+  const activePropertyId = !activeGroupId
+    ? (rawId && !reserved.includes(rawId) ? rawId : properties[0]?.id)
+    : undefined
   const activeProperty   = properties.find(p => p.id === activePropertyId) ?? properties[0]
   const activeLabel = activeGroup ? `▦ ${activeGroup.name}` : (activeProperty?.name ?? '—')
 
