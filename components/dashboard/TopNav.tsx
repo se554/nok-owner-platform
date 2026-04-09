@@ -6,9 +6,12 @@ import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { Owner, Property } from '@/lib/types/database'
 
+interface GroupLite { id: string; name: string; owner_id: string; active: boolean }
+
 interface TopNavProps {
   owner: Owner
   properties: Property[]
+  groups?: GroupLite[]
 }
 
 function BellIcon() {
@@ -28,7 +31,7 @@ function ChevronDown() {
   )
 }
 
-export default function TopNav({ owner, properties }: TopNavProps) {
+export default function TopNav({ owner, properties, groups = [] }: TopNavProps) {
   const pathname  = usePathname()
   const router    = useRouter()
   const supabase  = createClient()
@@ -38,12 +41,18 @@ export default function TopNav({ owner, properties }: TopNavProps) {
   const propRef = useRef<HTMLDivElement>(null)
   const userRef = useRef<HTMLDivElement>(null)
 
-  // Extract active propertyId from URL
+  // Extract active propertyId or groupId from URL
+  const groupMatch = pathname.match(/\/dashboard\/group\/([^\/]+)/)
+  const activeGroupId = groupMatch?.[1]
+  const activeGroup = groups.find(g => g.id === activeGroupId)
   const match = pathname.match(/\/dashboard\/([^\/]+)/)
-  const activePropertyId = match?.[1] ?? properties[0]?.id
+  const activePropertyId = !activeGroupId ? (match?.[1] ?? properties[0]?.id) : undefined
   const activeProperty   = properties.find(p => p.id === activePropertyId) ?? properties[0]
+  const activeLabel = activeGroup ? `▦ ${activeGroup.name}` : (activeProperty?.name ?? '—')
 
-  const navLinks = activePropertyId ? [
+  const navLinks = activeGroupId ? [
+    { label: 'Resumen', href: `/dashboard/group/${activeGroupId}/overview` },
+  ] : activePropertyId ? [
     { label: 'Resumen',    href: `/dashboard/${activePropertyId}/overview` },
     { label: 'Calendario', href: `/dashboard/${activePropertyId}/calendar` },
     { label: 'Reservas',   href: `/dashboard/${activePropertyId}/reservations` },
@@ -92,7 +101,7 @@ export default function TopNav({ owner, properties }: TopNavProps) {
         <div className="h-5 w-px" style={{ backgroundColor: 'rgba(242,242,242,0.1)' }} />
 
         {/* Property selector */}
-        {properties.length > 1 ? (
+        {(properties.length > 1 || groups.length > 0) ? (
           <div className="relative" ref={propRef}>
             <button
               onClick={() => setShowPropMenu(v => !v)}
@@ -104,7 +113,7 @@ export default function TopNav({ owner, properties }: TopNavProps) {
               onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = '#F2F2F2'}
               onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'rgba(242,242,242,0.55)'}
             >
-              <span className="max-w-[140px] truncate">{activeProperty?.name ?? '—'}</span>
+              <span className="max-w-[160px] truncate">{activeLabel}</span>
               <ChevronDown />
             </button>
 
@@ -119,6 +128,26 @@ export default function TopNav({ owner, properties }: TopNavProps) {
                   overflowY: 'auto',
                 }}
               >
+                {groups.length > 0 && (
+                  <div className="px-4 pt-2 pb-1 text-[10px] uppercase tracking-widest" style={{ color: 'rgba(242,242,242,0.35)' }}>Grupos</div>
+                )}
+                {groups.map(g => (
+                  <button
+                    key={g.id}
+                    onClick={() => { router.push(`/dashboard/group/${g.id}/overview`); setShowPropMenu(false) }}
+                    className="w-full text-left px-4 py-3 transition-colors duration-150 cursor-pointer"
+                    style={{
+                      borderBottom: '1px solid rgba(242,242,242,0.05)',
+                      backgroundColor: g.id === activeGroupId ? 'rgba(77,67,158,0.12)' : 'transparent',
+                    }}
+                  >
+                    <span className="block text-sm text-[#F2F2F2] font-medium">▦ {g.name}</span>
+                    <span className="block text-xs mt-0.5" style={{ color: 'rgba(242,242,242,0.4)' }}>Grupo consolidado</span>
+                  </button>
+                ))}
+                {properties.length > 0 && (
+                  <div className="px-4 pt-2 pb-1 text-[10px] uppercase tracking-widest" style={{ color: 'rgba(242,242,242,0.35)' }}>Propiedades</div>
+                )}
                 {properties.map(p => (
                   <button
                     key={p.id}

@@ -33,9 +33,21 @@ export default async function DashboardLayout({ children }: { children: React.Re
     properties = (owner.properties ?? []).filter((p: { active: boolean }) => p.active)
   }
 
+  // Fetch owner groups (admins see all, owners see only their own)
+  let groups: any[] = []
+  try {
+    let gQuery = (serviceSupabase as any)
+      .from('owner_property_groups')
+      .select('id, name, owner_id, active')
+      .eq('active', true)
+    if (!isAdmin) gQuery = gQuery.eq('owner_id', owner.id)
+    const { data: gs } = await gQuery.order('name')
+    groups = gs ?? []
+  } catch { groups = [] }
+
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#1D1D1B' }}>
-      <TopNav owner={owner} properties={properties} />
+      <TopNav owner={owner} properties={properties} groups={groups} />
       <main className="pt-16 min-w-0">
         {children}
       </main>
