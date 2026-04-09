@@ -30,16 +30,40 @@ export default function AnalyticsPage() {
   const [series, setSeries] = useState<PropertySeries[]>([])
   const [loading, setLoading] = useState(false)
   const [mode, setMode] = useState<'compare' | 'consolidated'>('compare')
+  const [groups, setGroups] = useState<{ id: string; name: string; property_ids: string[] }[]>([])
 
-  // Load property list from owner's accessible set
+  // Load property list and groups
   useEffect(() => {
     ;(async () => {
-      const res = await fetch('/api/analytics/properties')
-      const j = await res.json()
-      setProperties(j.properties ?? [])
-      if (j.properties?.length) setSelected([j.properties[0].id])
+      const [p, g] = await Promise.all([
+        fetch('/api/analytics/properties').then((r) => r.json()),
+        fetch('/api/analytics/groups').then((r) => r.json()),
+      ])
+      setProperties(p.properties ?? [])
+      setGroups(g.groups ?? [])
+      if (p.properties?.length) setSelected([p.properties[0].id])
     })()
   }, [])
+
+  async function saveAsGroup() {
+    const name = prompt('Nombre del grupo:')
+    if (!name) return
+    const res = await fetch('/api/analytics/groups', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, property_ids: selected }),
+    })
+    if (!res.ok) { alert('Error al guardar'); return }
+    const g = await fetch('/api/analytics/groups').then((r) => r.json())
+    setGroups(g.groups ?? [])
+  }
+
+  async function deleteGroup(id: string) {
+    if (!confirm('¿Eliminar grupo?')) return
+    await fetch(`/api/analytics/groups?id=${id}`, { method: 'DELETE' })
+    const g = await fetch('/api/analytics/groups').then((r) => r.json())
+    setGroups(g.groups ?? [])
+  }
 
   // Fetch timeseries whenever selection changes
   useEffect(() => {
@@ -178,9 +202,55 @@ export default function AnalyticsPage() {
         </button>
       </div>
 
+      {/* Saved groups quick-load */}
+      {groups.length > 0 && (
+        <div className="mb-4 p-4 rounded-xl" style={{ backgroundColor: '#141413', border: '1px solid rgba(242,242,242,0.08)' }}>
+          <p className="text-xs text-[#F2F2F2]/50 uppercase tracking-wider mb-2">Mis grupos guardados</p>
+          <div className="flex flex-wrap gap-2">
+            {groups.map((g) => (
+              <div key={g.id} className="flex items-center gap-1">
+                <button
+                  onClick={() => { setSelected(g.property_ids); setMode('consolidated') }}
+                  className="px-3 py-1.5 rounded-lg text-xs transition-all"
+                  style={{
+                    backgroundColor: 'rgba(214,167,0,0.15)',
+                    border: '1px solid rgba(214,167,0,0.35)',
+                    color: '#D6A700',
+                  }}
+                >
+                  ▦ {g.name} <span className="opacity-50">· {g.property_ids.length}</span>
+                </button>
+                <button
+                  onClick={() => deleteGroup(g.id)}
+                  className="text-[#F20022]/60 text-xs px-1 hover:text-[#F20022]"
+                  title="Eliminar grupo"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Property multi-select */}
       <div className="mb-6 p-4 rounded-xl" style={{ backgroundColor: '#141413', border: '1px solid rgba(242,242,242,0.08)' }}>
-        <p className="text-xs text-[#F2F2F2]/50 uppercase tracking-wider mb-2">Propiedades seleccionadas ({selected.length})</p>
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-xs text-[#F2F2F2]/50 uppercase tracking-wider">Propiedades seleccionadas ({selected.length})</p>
+          {selected.length > 1 && (
+            <button
+              onClick={saveAsGroup}
+              className="px-3 py-1 rounded-lg text-xs transition-all"
+              style={{
+                backgroundColor: 'rgba(14,104,69,0.15)',
+                border: '1px solid rgba(14,104,69,0.4)',
+                color: '#0E6845',
+              }}
+            >
+              + Guardar como grupo
+            </button>
+          )}
+        </div>
         <div className="flex flex-wrap gap-2">
           {properties.map((p) => {
             const active = selected.includes(p.id)
