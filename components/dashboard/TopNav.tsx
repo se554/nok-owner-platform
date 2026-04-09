@@ -51,7 +51,10 @@ export default function TopNav({ owner, properties, groups = [] }: TopNavProps) 
   const activeLabel = activeGroup ? `▦ ${activeGroup.name}` : (activeProperty?.name ?? '—')
 
   const navLinks = activeGroupId ? [
-    { label: 'Resumen', href: `/dashboard/group/${activeGroupId}/overview` },
+    { label: 'Resumen',    href: `/dashboard/group/${activeGroupId}/overview` },
+    { label: 'Reservas',   href: `/dashboard/group/${activeGroupId}/reservations` },
+    { label: 'Reseñas',    href: `/dashboard/group/${activeGroupId}/reviews` },
+    { label: 'NOK AI',     href: `/dashboard/group/${activeGroupId}/chat`, ai: true },
   ] : activePropertyId ? [
     { label: 'Resumen',    href: `/dashboard/${activePropertyId}/overview` },
     { label: 'Calendario', href: `/dashboard/${activePropertyId}/calendar` },
