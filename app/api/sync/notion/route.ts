@@ -66,7 +66,7 @@ export async function POST(req: Request) {
         .eq('guesty_listing_id', apt.guesty_listing_id)
 
       if (error) {
-        errors.push(`${apt.name}: ${error.message}`)
+        errors.push(`${apt.name}: ${(error as any)?.message ?? 'unknown'}`)
       } else {
         synced++
       }
