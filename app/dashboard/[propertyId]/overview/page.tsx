@@ -80,7 +80,7 @@ export default async function OverviewPage({ params, searchParams }: Props) {
     ytdMonthKeys.push(`${displayYear}-${String(m).padStart(2, '0')}`)
   }
 
-  const [cleaningsRes, upcomingRes, channelRes, checkoutsRes, monthResRes, ytdResRes, trailing12Res, monthUtilRes, ytdUtilRes] = await Promise.all([
+  const [cleaningsRes, upcomingRes, channelRes, checkoutsRes, monthResRes, ytdResRes, trailing12Res, monthUtilRes, ytdUtilRes, monthMaintRes, ytdMaintRes] = await Promise.all([
     sb.from('cleaning_records').select('completed_at, staff_name, status')
       .eq('property_id', propertyId).eq('status', 'completed')
       .order('completed_at', { ascending: false }).limit(1).single(),
@@ -110,6 +110,12 @@ export default async function OverviewPage({ params, searchParams }: Props) {
     // Utility costs YTD
     sb.from('utility_costs').select('utility_type, amount, currency, month')
       .eq('property_id', propertyId).in('month', ytdMonthKeys),
+    // Maintenance costs for selected month
+    sb.from('maintenance_costs').select('amount, currency, date, type, description')
+      .eq('property_id', propertyId).gte('date', monthStart).lte('date', monthEnd),
+    // Maintenance costs YTD
+    sb.from('maintenance_costs').select('amount, currency, date')
+      .eq('property_id', propertyId).gte('date', yearStart),
   ])
 
   // Live TRM (cached 24h) — used to convert any COP reservation to USD
@@ -205,7 +211,16 @@ export default async function OverviewPage({ params, searchParams }: Props) {
     utilitiesByType[u.utility_type].push({ amount: amt, currency: u.currency, reference: u.reference })
   }
 
-  const netRevenue = grossRevenue - commAmount - cleaningCostUSD - directBookingCommission - monthUtilitiesUSD
+  // ── Maintenance for current month ──
+  const monthMaintRows = (monthMaintRes as any)?.data ?? []
+  let monthMaintenanceUSD = 0
+  for (const m of monthMaintRows as any[]) {
+    const amt = Number(m.amount) || 0
+    const usd = (m.currency || 'USD').toUpperCase() === 'USD' ? amt : await copToUSD(amt)
+    monthMaintenanceUSD += usd
+  }
+
+  const netRevenue = grossRevenue - commAmount - cleaningCostUSD - directBookingCommission - monthUtilitiesUSD - monthMaintenanceUSD
 
   // YTD financial
   const ytdCommAmount = ytdRevenue * commRate
@@ -234,7 +249,16 @@ export default async function OverviewPage({ params, searchParams }: Props) {
     ytdUtilitiesUSD += usd
   }
 
-  const ytdNetRevenue = ytdRevenue - ytdCommAmount - ytdCleaningCost - ytdDirectCommission - ytdUtilitiesUSD
+  // YTD maintenance
+  const ytdMaintRows = (ytdMaintRes as any)?.data ?? []
+  let ytdMaintenanceUSD = 0
+  for (const m of ytdMaintRows as any[]) {
+    const amt = Number(m.amount) || 0
+    const usd = (m.currency || 'USD').toUpperCase() === 'USD' ? amt : await copToUSD(amt)
+    ytdMaintenanceUSD += usd
+  }
+
+  const ytdNetRevenue = ytdRevenue - ytdCommAmount - ytdCleaningCost - ytdDirectCommission - ytdUtilitiesUSD - ytdMaintenanceUSD
 
   const hasFinancialData   = property.nok_commission_rate != null || property.cleaning_fee != null
   const ownerFirstName     = (owner as any).name?.split(' ')[0] ?? 'Propietario'
@@ -350,6 +374,13 @@ export default async function OverviewPage({ params, searchParams }: Props) {
                   deduct
                 />
               )}
+              {monthMaintenanceUSD > 0 && (
+                <FinRow
+                  label="Mantenimiento"
+                  value={`− ${fmt(monthMaintenanceUSD)}`}
+                  deduct
+                />
+              )}
               <div
                 className="pt-4 mt-1"
                 style={{ borderTop: '1px solid rgba(242,242,242,0.07)' }}
@@ -454,6 +485,13 @@ export default async function OverviewPage({ params, searchParams }: Props) {
                 <FinRow
                   label="Utilities (servicios públicos)"
                   value={`− ${fmt(ytdUtilitiesUSD)}`}
+                  deduct
+                />
+              )}
+              {ytdMaintenanceUSD > 0 && (
+                <FinRow
+                  label="Mantenimiento"
+                  value={`− ${fmt(ytdMaintenanceUSD)}`}
                   deduct
                 />
               )}
