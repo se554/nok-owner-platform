@@ -56,6 +56,10 @@ export default async function OverviewPage({ params, searchParams }: Props) {
   const { owner, property, sb } = await loadOwnerProperty(propertyId)
   if (!property) notFound()
 
+  // Derive building name from property.name (e.g. "The Park IV 301" → "The Park IV")
+  const propBuilding = (property.name || '').replace(/\s+\S+$/, '').trim() || property.name || ''
+  const maintOr = `property_id.eq.${propertyId},building.eq.${propBuilding}`
+
   const now       = new Date()
   // Selected month (from ?month=YYYY-MM) or current month
   const selectedMonthKey = monthParam && /^\d{4}-\d{2}$/.test(monthParam)
@@ -111,11 +115,11 @@ export default async function OverviewPage({ params, searchParams }: Props) {
     sb.from('utility_costs').select('utility_type, amount, currency, month')
       .eq('property_id', propertyId).in('month', ytdMonthKeys),
     // Maintenance costs for selected month
-    sb.from('maintenance_costs').select('amount, currency, date, type, description')
-      .eq('property_id', propertyId).gte('date', monthStart).lte('date', monthEnd),
+    sb.from('maintenance_costs').select('amount, currency, date, type, description, property_id, building')
+      .or(maintOr).gte('date', monthStart).lte('date', monthEnd),
     // Maintenance costs YTD
-    sb.from('maintenance_costs').select('amount, currency, date')
-      .eq('property_id', propertyId).gte('date', yearStart),
+    sb.from('maintenance_costs').select('amount, currency, date, property_id, building')
+      .or(maintOr).gte('date', yearStart),
   ])
 
   // Live TRM (cached 24h) — used to convert any COP reservation to USD
