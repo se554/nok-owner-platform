@@ -59,6 +59,8 @@ export default function TopNav({ owner, properties, groups = [] }: TopNavProps) 
     { label: 'Reseñas',    href: `/dashboard/${activePropertyId}/reviews` },
     { label: 'NOK AI',     href: `/dashboard/${activePropertyId}/chat`, ai: true },
   ] : []
+  // Always-visible analytics link
+  const analyticsLink = { label: 'Analíticas', href: '/dashboard/analytics' }
 
   function isActive(href: string) {
     return pathname === href || pathname.startsWith(href)
@@ -219,6 +221,17 @@ export default function TopNav({ owner, properties, groups = [] }: TopNavProps) 
               </Link>
             )
           })}
+          {/* Analytics — always visible */}
+          <Link
+            href={analyticsLink.href}
+            className="px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300"
+            style={{
+              color: isActive(analyticsLink.href) ? '#B9B5DC' : 'rgba(242,242,242,0.45)',
+              backgroundColor: isActive(analyticsLink.href) ? 'rgba(77,67,158,0.15)' : 'transparent',
+            }}
+          >
+            {analyticsLink.label}
+          </Link>
         </div>
       </div>
 
