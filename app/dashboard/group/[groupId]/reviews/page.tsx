@@ -39,6 +39,7 @@ export default async function GroupReviews({ params }: Props) {
 
   const { data: reviews } = await sb
     .from('reviews').select('*').in('property_id', idList)
+    .gte('overall_score', 4)
     .order('submitted_at', { ascending: false }).limit(60)
 
   const all = reviews ?? []

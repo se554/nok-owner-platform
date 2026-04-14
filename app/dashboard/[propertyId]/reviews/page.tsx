@@ -44,6 +44,7 @@ export default async function ReviewsPage({ params }: Props) {
     .from('reviews')
     .select('*')
     .eq('property_id', propertyId)
+    .gte('overall_score', 4)
     .order('submitted_at', { ascending: false })
     .limit(30)
 
