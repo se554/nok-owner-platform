@@ -5,6 +5,7 @@ import { copToUSD, getUSDtoCOPRate } from '@/lib/trm'
 import SupportForm from '@/components/dashboard/SupportForm'
 import MonthPills from '@/components/dashboard/MonthPills'
 import { loadOwnerProperty } from '@/lib/admin'
+import { sumMonthCostsUSD, sumRangeCostsUSD, type OwnerCostRow } from '@/lib/owner-costs'
 
 interface Props {
   params: Promise<{ propertyId: string }>
@@ -84,7 +85,7 @@ export default async function OverviewPage({ params, searchParams }: Props) {
     ytdMonthKeys.push(`${displayYear}-${String(m).padStart(2, '0')}`)
   }
 
-  const [cleaningsRes, upcomingRes, channelRes, checkoutsRes, monthResRes, ytdResRes, trailing12Res, monthUtilRes, ytdUtilRes, monthMaintRes, ytdMaintRes] = await Promise.all([
+  const [cleaningsRes, upcomingRes, channelRes, checkoutsRes, monthResRes, ytdResRes, trailing12Res, monthUtilRes, ytdUtilRes, monthMaintRes, ytdMaintRes, ownerCostsRes] = await Promise.all([
     sb.from('cleaning_records').select('completed_at, staff_name, status')
       .eq('property_id', propertyId).eq('status', 'completed')
       .order('completed_at', { ascending: false }).limit(1).single(),
@@ -120,6 +121,12 @@ export default async function OverviewPage({ params, searchParams }: Props) {
     // Maintenance costs YTD
     sb.from('maintenance_costs').select('amount, currency, date, property_id, building')
       .or(maintOr).gte('date', yearStart),
+    // Owner-entered direct costs (mortgage, HOA, etc.)
+    // Wrap in a catch so the page still renders if the migration hasn't been applied yet.
+    sb.from('owner_costs').select('*').eq('property_id', propertyId).then(
+      (r: any) => r,
+      () => ({ data: [], error: null }),
+    ),
   ])
 
   // Live TRM (cached 24h) — used to convert any COP reservation to USD
@@ -224,7 +231,15 @@ export default async function OverviewPage({ params, searchParams }: Props) {
     monthMaintenanceUSD += usd
   }
 
-  const netRevenue = grossRevenue - commAmount - cleaningCostUSD - directBookingCommission - monthUtilitiesUSD - monthMaintenanceUSD
+  // ── Owner-entered direct costs ──
+  const ownerCostRows = ((ownerCostsRes as any)?.data ?? []) as OwnerCostRow[]
+  const monthStartDate = new Date(monthStart + 'T00:00:00')
+  const monthEndDate = new Date(monthEnd + 'T00:00:00')
+  const yearStartDate = new Date(yearStart + 'T00:00:00')
+  const ownerCostsMonthUSD = sumMonthCostsUSD(ownerCostRows, monthStartDate, monthEndDate, toUSD)
+  const ownerCostsYtdUSD = sumRangeCostsUSD(ownerCostRows, yearStartDate, monthEndDate, toUSD)
+
+  const netRevenue = grossRevenue - commAmount - cleaningCostUSD - directBookingCommission - monthUtilitiesUSD - monthMaintenanceUSD - ownerCostsMonthUSD
 
   // YTD financial
   const ytdCommAmount = ytdRevenue * commRate
@@ -262,7 +277,7 @@ export default async function OverviewPage({ params, searchParams }: Props) {
     ytdMaintenanceUSD += usd
   }
 
-  const ytdNetRevenue = ytdRevenue - ytdCommAmount - ytdCleaningCost - ytdDirectCommission - ytdUtilitiesUSD - ytdMaintenanceUSD
+  const ytdNetRevenue = ytdRevenue - ytdCommAmount - ytdCleaningCost - ytdDirectCommission - ytdUtilitiesUSD - ytdMaintenanceUSD - ownerCostsYtdUSD
 
   const hasFinancialData   = property.nok_commission_rate != null || property.cleaning_fee != null
   const ownerFirstName     = (owner as any).name?.split(' ')[0] ?? 'Propietario'
@@ -385,6 +400,13 @@ export default async function OverviewPage({ params, searchParams }: Props) {
                   deduct
                 />
               )}
+              {ownerCostsMonthUSD > 0 && (
+                <FinRow
+                  label="Costos propios (ingresados por ti)"
+                  value={`− ${fmt(ownerCostsMonthUSD)}`}
+                  deduct
+                />
+              )}
               <div
                 className="pt-4 mt-1"
                 style={{ borderTop: '1px solid rgba(242,242,242,0.07)' }}
@@ -496,6 +518,13 @@ export default async function OverviewPage({ params, searchParams }: Props) {
                 <FinRow
                   label="Mantenimiento"
                   value={`− ${fmt(ytdMaintenanceUSD)}`}
+                  deduct
+                />
+              )}
+              {ownerCostsYtdUSD > 0 && (
+                <FinRow
+                  label="Costos propios (ingresados por ti)"
+                  value={`− ${fmt(ownerCostsYtdUSD)}`}
                   deduct
                 />
               )}

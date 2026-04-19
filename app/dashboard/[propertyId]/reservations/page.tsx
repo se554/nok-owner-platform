@@ -23,12 +23,15 @@ export default async function ReservationsPage({ params }: Props) {
   // Get reservations: upcoming first, then past
   const today = new Date().toISOString().split('T')[0]
 
+  // Only show confirmed reservations — exclude inquiries and cancellations
+  const CONFIRMED_STATUSES = ['confirmed', 'checked_in', 'checked_out']
+
   const { data: upcoming } = await serviceSupabase
     .from('reservations')
     .select('*')
     .eq('property_id', propertyId)
     .gte('check_in', today)
-    .neq('status', 'cancelled')
+    .in('status', CONFIRMED_STATUSES)
     .order('check_in', { ascending: true })
     .limit(20)
 
@@ -37,6 +40,7 @@ export default async function ReservationsPage({ params }: Props) {
     .select('*')
     .eq('property_id', propertyId)
     .lt('check_in', today)
+    .in('status', CONFIRMED_STATUSES)
     .order('check_in', { ascending: false })
     .limit(10)
 

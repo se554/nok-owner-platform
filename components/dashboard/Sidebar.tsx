@@ -17,6 +17,7 @@ const navItems = (propertyId: string) => [
   { label: 'Reservas', href: `/dashboard/${propertyId}/reservations`, icon: '📅' },
   { label: 'Reseñas', href: `/dashboard/${propertyId}/reviews`, icon: '⭐' },
   { label: 'Inventario', href: `/dashboard/${propertyId}/inventory`, icon: '📦' },
+  { label: 'Costos propios', href: `/dashboard/${propertyId}/costs`, icon: '💰' },
   { label: 'Historial', href: `/dashboard/${propertyId}/history`, icon: '🧹' },
   { label: 'Chat IA', href: `/dashboard/${propertyId}/chat`, icon: '💬' },
 ]
