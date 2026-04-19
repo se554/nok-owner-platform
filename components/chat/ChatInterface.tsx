@@ -74,7 +74,7 @@ export default function ChatInterface({
           <div className="flex flex-col items-center justify-center py-12 text-center max-w-lg mx-auto">
             <div
               className="w-14 h-14 rounded-2xl flex items-center justify-center mb-5"
-              style={{ backgroundColor: 'rgba(77,67,158,0.15)', border: '1px solid rgba(77,67,158,0.3)' }}
+              style={{ backgroundColor: 'rgba(131, 59, 14,0.15)', border: '1px solid rgba(131, 59, 14,0.3)' }}
             >
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#B9B5DC" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                 <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
@@ -100,7 +100,7 @@ export default function ChatInterface({
                     backgroundColor: '#141413',
                   }}
                   onMouseEnter={e => {
-                    (e.currentTarget as HTMLElement).style.borderColor = 'rgba(77,67,158,0.4)'
+                    (e.currentTarget as HTMLElement).style.borderColor = 'rgba(131, 59, 14,0.4)'
                     ;(e.currentTarget as HTMLElement).style.color = '#F2F2F2'
                   }}
                   onMouseLeave={e => {
@@ -123,7 +123,7 @@ export default function ChatInterface({
             {message.role === 'assistant' && (
               <div
                 className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 mr-2.5 mt-0.5"
-                style={{ backgroundColor: 'rgba(77,67,158,0.2)' }}
+                style={{ backgroundColor: 'rgba(131, 59, 14,0.2)' }}
               >
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#B9B5DC" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
@@ -137,7 +137,7 @@ export default function ChatInterface({
               }`}
               style={
                 message.role === 'user'
-                  ? { backgroundColor: '#4D439E', color: '#F2F2F2' }
+                  ? { backgroundColor: '#833B0E', color: '#F2F2F2' }
                   : { backgroundColor: '#1E1E1C', color: 'rgba(242,242,242,0.85)', border: '1px solid rgba(242,242,242,0.07)' }
               }
             >
@@ -166,7 +166,7 @@ export default function ChatInterface({
           <div className="flex justify-start">
             <div
               className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 mr-2.5 mt-0.5"
-              style={{ backgroundColor: 'rgba(77,67,158,0.2)' }}
+              style={{ backgroundColor: 'rgba(131, 59, 14,0.2)' }}
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#B9B5DC" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
@@ -177,9 +177,9 @@ export default function ChatInterface({
               style={{ backgroundColor: '#1E1E1C', border: '1px solid rgba(242,242,242,0.07)' }}
             >
               <div className="flex gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full animate-bounce [animation-delay:0ms]" style={{ backgroundColor: '#4D439E' }} />
-                <span className="w-1.5 h-1.5 rounded-full animate-bounce [animation-delay:150ms]" style={{ backgroundColor: '#4D439E' }} />
-                <span className="w-1.5 h-1.5 rounded-full animate-bounce [animation-delay:300ms]" style={{ backgroundColor: '#4D439E' }} />
+                <span className="w-1.5 h-1.5 rounded-full animate-bounce [animation-delay:0ms]" style={{ backgroundColor: '#833B0E' }} />
+                <span className="w-1.5 h-1.5 rounded-full animate-bounce [animation-delay:150ms]" style={{ backgroundColor: '#833B0E' }} />
+                <span className="w-1.5 h-1.5 rounded-full animate-bounce [animation-delay:300ms]" style={{ backgroundColor: '#833B0E' }} />
               </div>
             </div>
           </div>
@@ -211,14 +211,14 @@ export default function ChatInterface({
               border: '1px solid rgba(242,242,242,0.08)',
               color: '#F2F2F2',
             }}
-            onFocus={e => (e.currentTarget as HTMLElement).style.borderColor = 'rgba(77,67,158,0.5)'}
+            onFocus={e => (e.currentTarget as HTMLElement).style.borderColor = 'rgba(131, 59, 14,0.5)'}
             onBlur={e => (e.currentTarget as HTMLElement).style.borderColor = 'rgba(242,242,242,0.08)'}
           />
           <button
             type="submit"
             disabled={isLoading || !inputValue.trim()}
             className="shrink-0 w-10 h-10 rounded-xl flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer"
-            style={{ backgroundColor: '#4D439E', color: '#F2F2F2' }}
+            style={{ backgroundColor: '#833B0E', color: '#F2F2F2' }}
           >
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
               <path d="M3.105 2.289a.75.75 0 00-.826.95l1.414 4.925A1.5 1.5 0 005.135 9.25h6.115a.75.75 0 010 1.5H5.135a1.5 1.5 0 00-1.442 1.086l-1.414 4.926a.75.75 0 00.826.95 28.896 28.896 0 0015.293-7.154.75.75 0 000-1.115A28.897 28.897 0 003.105 2.289z" />

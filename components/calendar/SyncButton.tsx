@@ -38,8 +38,8 @@ export default function SyncButton({ propertyId }: { propertyId: string }) {
         className="text-sm px-4 py-2 rounded-xl flex items-center gap-2 transition-all duration-200 disabled:opacity-50 cursor-pointer"
         style={{
           color: '#B9B5DC',
-          border: '1px solid rgba(77,67,158,0.3)',
-          backgroundColor: 'rgba(77,67,158,0.08)',
+          border: '1px solid rgba(131, 59, 14,0.3)',
+          backgroundColor: 'rgba(131, 59, 14,0.08)',
         }}
       >
         <span className={state === 'loading' ? 'animate-spin inline-block' : ''}>↻</span>

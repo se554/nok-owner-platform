@@ -47,7 +47,7 @@ const CHANNEL_COLORS: Record<string, { bg: string; border: string; text: string 
   vrbo:          { bg: 'rgba(139,92,246,0.15)',  border: '#8b5cf6', text: '#c4b5fd' },
 }
 
-const DEFAULT_CHANNEL = { bg: 'rgba(77,67,158,0.15)', border: '#4D439E', text: '#B9B5DC' }
+const DEFAULT_CHANNEL = { bg: 'rgba(131, 59, 14,0.15)', border: '#833B0E', text: '#B9B5DC' }
 
 function getChannelStyle(channel: string | null) {
   if (!channel) return DEFAULT_CHANNEL
@@ -138,7 +138,7 @@ export default function CalendarView({ propertyId, year, month, reservations, pr
             onClick={() => navigate(-1)}
             className="w-9 h-9 flex items-center justify-center rounded-xl transition-all duration-200 cursor-pointer"
             style={{ color: 'rgba(242,242,242,0.45)', border: '1px solid rgba(242,242,242,0.07)' }}
-            onMouseEnter={e => (e.currentTarget as HTMLElement).style.borderColor = 'rgba(77,67,158,0.5)'}
+            onMouseEnter={e => (e.currentTarget as HTMLElement).style.borderColor = 'rgba(131, 59, 14,0.5)'}
             onMouseLeave={e => (e.currentTarget as HTMLElement).style.borderColor = 'rgba(242,242,242,0.07)'}
           >
             ‹
@@ -150,7 +150,7 @@ export default function CalendarView({ propertyId, year, month, reservations, pr
             onClick={() => navigate(1)}
             className="w-9 h-9 flex items-center justify-center rounded-xl transition-all duration-200 cursor-pointer"
             style={{ color: 'rgba(242,242,242,0.45)', border: '1px solid rgba(242,242,242,0.07)' }}
-            onMouseEnter={e => (e.currentTarget as HTMLElement).style.borderColor = 'rgba(77,67,158,0.5)'}
+            onMouseEnter={e => (e.currentTarget as HTMLElement).style.borderColor = 'rgba(131, 59, 14,0.5)'}
             onMouseLeave={e => (e.currentTarget as HTMLElement).style.borderColor = 'rgba(242,242,242,0.07)'}
           >
             ›
@@ -215,7 +215,7 @@ export default function CalendarView({ propertyId, year, month, reservations, pr
                   <span
                     className="w-6 h-6 flex items-center justify-center rounded-full text-xs font-medium"
                     style={{
-                      backgroundColor: isToday ? '#4D439E' : 'transparent',
+                      backgroundColor: isToday ? '#833B0E' : 'transparent',
                       color: isToday ? '#F2F2F2' : isPast ? 'rgba(242,242,242,0.2)' : 'rgba(242,242,242,0.6)',
                     }}
                   >
@@ -302,7 +302,7 @@ export default function CalendarView({ propertyId, year, month, reservations, pr
           </div>
         ))}
         <div className="flex items-center gap-1.5">
-          <div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: '#4D439E' }} />
+          <div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: '#833B0E' }} />
           <span className="text-xs" style={{ color: 'rgba(242,242,242,0.4)' }}>Otro</span>
         </div>
       </div>
@@ -382,7 +382,7 @@ export default function CalendarView({ propertyId, year, month, reservations, pr
             className="w-full max-w-sm rounded-2xl p-6"
             style={{
               backgroundColor: '#1E1E1C',
-              border: '1px solid rgba(77,67,158,0.3)',
+              border: '1px solid rgba(131, 59, 14,0.3)',
               boxShadow: '0 24px 64px rgba(0,0,0,0.6)',
             }}
             onClick={e => e.stopPropagation()}
@@ -440,8 +440,8 @@ export default function CalendarView({ propertyId, year, month, reservations, pr
                 className="block text-center text-sm py-2.5 rounded-xl transition-all duration-200"
                 style={{
                   color: '#B9B5DC',
-                  border: '1px solid rgba(77,67,158,0.3)',
-                  backgroundColor: 'rgba(77,67,158,0.08)',
+                  border: '1px solid rgba(131, 59, 14,0.3)',
+                  backgroundColor: 'rgba(131, 59, 14,0.08)',
                 }}
                 onClick={() => setSelectedReservation(null)}
               >

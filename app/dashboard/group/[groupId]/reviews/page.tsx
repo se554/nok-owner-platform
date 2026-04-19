@@ -90,7 +90,7 @@ export default async function GroupReviews({ params }: Props) {
               </div>
               {r.reviewer_text && <p className="text-sm leading-relaxed text-[#F2F2F2]/70">{r.reviewer_text as string}</p>}
               {r.host_response && (
-                <div className="mt-4 pl-4 py-2" style={{ borderLeft: '2px solid rgba(77,67,158,0.4)' }}>
+                <div className="mt-4 pl-4 py-2" style={{ borderLeft: '2px solid rgba(131, 59, 14,0.4)' }}>
                   <p className="text-xs mb-1 text-[#B9B5DC]">Respuesta de NOK</p>
                   <p className="text-xs text-[#F2F2F2]/55">{r.host_response as string}</p>
                 </div>

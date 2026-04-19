@@ -182,8 +182,8 @@ export default function AnalyticsPage() {
           onClick={() => setMode('compare')}
           className="px-4 py-1.5 rounded-lg text-xs font-medium transition-all"
           style={{
-            backgroundColor: mode === 'compare' ? 'rgba(77,67,158,0.25)' : 'rgba(242,242,242,0.04)',
-            border: `1px solid ${mode === 'compare' ? '#4D439E' : 'rgba(242,242,242,0.08)'}`,
+            backgroundColor: mode === 'compare' ? 'rgba(131, 59, 14,0.25)' : 'rgba(242,242,242,0.04)',
+            border: `1px solid ${mode === 'compare' ? '#833B0E' : 'rgba(242,242,242,0.08)'}`,
             color: mode === 'compare' ? '#F2F2F2' : 'rgba(242,242,242,0.55)',
           }}
         >
@@ -193,8 +193,8 @@ export default function AnalyticsPage() {
           onClick={() => setMode('consolidated')}
           className="px-4 py-1.5 rounded-lg text-xs font-medium transition-all"
           style={{
-            backgroundColor: mode === 'consolidated' ? 'rgba(77,67,158,0.25)' : 'rgba(242,242,242,0.04)',
-            border: `1px solid ${mode === 'consolidated' ? '#4D439E' : 'rgba(242,242,242,0.08)'}`,
+            backgroundColor: mode === 'consolidated' ? 'rgba(131, 59, 14,0.25)' : 'rgba(242,242,242,0.04)',
+            border: `1px solid ${mode === 'consolidated' ? '#833B0E' : 'rgba(242,242,242,0.08)'}`,
             color: mode === 'consolidated' ? '#F2F2F2' : 'rgba(242,242,242,0.55)',
           }}
         >
@@ -260,8 +260,8 @@ export default function AnalyticsPage() {
                 onClick={() => toggleProp(p.id)}
                 className="px-3 py-1.5 rounded-lg text-xs transition-all"
                 style={{
-                  backgroundColor: active ? 'rgba(77,67,158,0.25)' : 'rgba(242,242,242,0.04)',
-                  border: `1px solid ${active ? '#4D439E' : 'rgba(242,242,242,0.08)'}`,
+                  backgroundColor: active ? 'rgba(131, 59, 14,0.25)' : 'rgba(242,242,242,0.04)',
+                  border: `1px solid ${active ? '#833B0E' : 'rgba(242,242,242,0.08)'}`,
                   color: active ? '#F2F2F2' : 'rgba(242,242,242,0.55)',
                 }}
               >

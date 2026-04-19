@@ -31,8 +31,8 @@ export default function MonthPills({ year, selected }: Props) {
             onClick={() => selectMonth(key)}
             className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 cursor-pointer"
             style={{
-              backgroundColor: active ? 'rgba(77,67,158,0.25)' : 'rgba(242,242,242,0.04)',
-              border: `1px solid ${active ? '#4D439E' : 'rgba(242,242,242,0.08)'}`,
+              backgroundColor: active ? 'rgba(131, 59, 14,0.25)' : 'rgba(242,242,242,0.04)',
+              border: `1px solid ${active ? '#833B0E' : 'rgba(242,242,242,0.08)'}`,
               color: active ? '#F2F2F2' : 'rgba(242,242,242,0.55)',
             }}
           >

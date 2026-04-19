@@ -47,9 +47,9 @@ export default function SupportForm({ propertyId }: Props) {
           <div className="flex items-center gap-3">
             <div
               className="w-10 h-10 rounded-xl flex items-center justify-center"
-              style={{ backgroundColor: 'rgba(77,67,158,0.15)', border: '1px solid rgba(77,67,158,0.25)' }}
+              style={{ backgroundColor: 'rgba(131, 59, 14,0.15)', border: '1px solid rgba(131, 59, 14,0.25)' }}
             >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4D439E" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#833B0E" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
               </svg>
             </div>
@@ -64,17 +64,17 @@ export default function SupportForm({ propertyId }: Props) {
             onClick={() => setOpen(true)}
             className="px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200"
             style={{
-              backgroundColor: 'rgba(77,67,158,0.15)',
+              backgroundColor: 'rgba(131, 59, 14,0.15)',
               color: '#B9B5DC',
-              border: '1px solid rgba(77,67,158,0.25)',
+              border: '1px solid rgba(131, 59, 14,0.25)',
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgba(77,67,158,0.25)'
-              e.currentTarget.style.borderColor = 'rgba(77,67,158,0.4)'
+              e.currentTarget.style.backgroundColor = 'rgba(131, 59, 14,0.25)'
+              e.currentTarget.style.borderColor = 'rgba(131, 59, 14,0.4)'
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgba(77,67,158,0.15)'
-              e.currentTarget.style.borderColor = 'rgba(77,67,158,0.25)'
+              e.currentTarget.style.backgroundColor = 'rgba(131, 59, 14,0.15)'
+              e.currentTarget.style.borderColor = 'rgba(131, 59, 14,0.25)'
             }}
           >
             Escribir consulta
@@ -85,13 +85,13 @@ export default function SupportForm({ propertyId }: Props) {
   }
 
   return (
-    <div className="rounded-2xl p-6 nok-card" style={{ border: '1px solid rgba(77,67,158,0.3)' }}>
+    <div className="rounded-2xl p-6 nok-card" style={{ border: '1px solid rgba(131, 59, 14,0.3)' }}>
       <div className="flex items-center gap-3 mb-5">
         <div
           className="w-10 h-10 rounded-xl flex items-center justify-center"
-          style={{ backgroundColor: 'rgba(77,67,158,0.15)', border: '1px solid rgba(77,67,158,0.25)' }}
+          style={{ backgroundColor: 'rgba(131, 59, 14,0.15)', border: '1px solid rgba(131, 59, 14,0.25)' }}
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4D439E" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#833B0E" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
           </svg>
         </div>
@@ -135,7 +135,7 @@ export default function SupportForm({ propertyId }: Props) {
             onChange={(e) => setMessage(e.target.value)}
             placeholder="Escribe tu consulta aqui... Ejemplo: Quiero bloquear fechas del 15 al 20 de diciembre para uso personal."
             rows={4}
-            className="w-full rounded-xl px-4 py-3 text-sm text-[#F2F2F2] placeholder:text-[#F2F2F2]/25 resize-none focus:outline-none focus:ring-1 focus:ring-[#4D439E]/50"
+            className="w-full rounded-xl px-4 py-3 text-sm text-[#F2F2F2] placeholder:text-[#F2F2F2]/25 resize-none focus:outline-none focus:ring-1 focus:ring-[#833B0E]/50"
             style={{
               backgroundColor: 'rgba(20,20,19,0.6)',
               border: '1px solid rgba(242,242,242,0.08)',
@@ -163,7 +163,7 @@ export default function SupportForm({ propertyId }: Props) {
                 onClick={handleSubmit}
                 disabled={sending || !message.trim()}
                 className="px-5 py-2 rounded-lg text-sm font-medium text-white transition-all duration-200 disabled:opacity-40"
-                style={{ backgroundColor: '#4D439E' }}
+                style={{ backgroundColor: '#833B0E' }}
               >
                 {sending ? 'Enviando...' : 'Enviar consulta'}
               </button>

@@ -13,7 +13,7 @@ export function buildSystemPrompt(property: Property, owner: Owner): string {
     timeZone: 'America/Santo_Domingo',
   })
 
-  return `Eres el asistente de inteligencia artificial del NOK Owner Portal — la plataforma privada de NOK para propietarios de alquileres a corto plazo en República Dominicana.
+  return `Eres el asistente de inteligencia artificial del NOK Owners — la plataforma privada de NOK para propietarios de alquileres a corto plazo en República Dominicana.
 
 Estás hablando con ${owner.name}, propietario de la unidad **${property.name}** (${property.address ?? property.city ?? 'RD'}).
 

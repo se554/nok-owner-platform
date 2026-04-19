@@ -227,7 +227,7 @@ export default function PhotosPage() {
 
                 {upload.status === 'uploading' && (
                   <div className="absolute bottom-0 left-0 right-0 h-1 bg-[#2A2A28]">
-                    <div className="h-full bg-[#4D439E] rounded-full transition-all" style={{ width: `${upload.progress}%` }} />
+                    <div className="h-full bg-[#833B0E] rounded-full transition-all" style={{ width: `${upload.progress}%` }} />
                   </div>
                 )}
               </div>

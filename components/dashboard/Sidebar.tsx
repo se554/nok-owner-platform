@@ -50,7 +50,7 @@ export default function Sidebar({ owner, properties }: SidebarProps) {
           <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center">
             <span className="text-white font-bold text-sm">N</span>
           </div>
-          <span className="font-semibold text-gray-900 text-sm">NOK Owner Portal</span>
+          <span className="font-semibold text-gray-900 text-sm">NOK Owners</span>
         </div>
       </div>
 

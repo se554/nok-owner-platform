@@ -34,7 +34,7 @@ export default async function ChatPage({ params }: Props) {
       >
         <div
           className="w-9 h-9 rounded-xl flex items-center justify-center"
-          style={{ backgroundColor: 'rgba(77,67,158,0.2)', border: '1px solid rgba(77,67,158,0.4)' }}
+          style={{ backgroundColor: 'rgba(131, 59, 14,0.2)', border: '1px solid rgba(131, 59, 14,0.4)' }}
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#B9B5DC" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>

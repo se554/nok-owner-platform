@@ -38,7 +38,7 @@ export default function LoginPage() {
       <div
         className="fixed inset-0 pointer-events-none"
         style={{
-          background: 'radial-gradient(ellipse 60% 50% at 50% 0%, rgba(77,67,158,0.18) 0%, transparent 70%)',
+          background: 'radial-gradient(ellipse 60% 50% at 50% 0%, rgba(131, 59, 14,0.18) 0%, transparent 70%)',
         }}
       />
 
@@ -51,7 +51,7 @@ export default function LoginPage() {
             NOK
           </p>
           <p style={{ color: 'rgba(242,242,242,0.35)', letterSpacing: '0.15em' }} className="text-xs uppercase">
-            Portal de Propietarios
+            NOK Owners &nbsp;·&nbsp; Feels right. Anywhere.
           </p>
         </div>
 
@@ -65,10 +65,10 @@ export default function LoginPage() {
           }}
         >
           <h1 className="font-serif text-3xl font-light text-[#F2F2F2] mb-1">
-            Acceso al portal
+            Your property. Always in view.
           </h1>
           <p className="text-sm mb-8" style={{ color: 'rgba(242,242,242,0.4)' }}>
-            Exclusivo para propietarios NOK
+            Performance, reservations and financials — everything in one place.
           </p>
 
           <form onSubmit={handleLogin} className="space-y-5">
@@ -90,7 +90,7 @@ export default function LoginPage() {
                 style={{
                   backgroundColor: '#1E1E1C',
                   border: '1px solid rgba(242,242,242,0.08)',
-                  '--tw-ring-color': 'rgba(77,67,158,0.5)',
+                  '--tw-ring-color': 'rgba(131, 59, 14,0.5)',
                 } as React.CSSProperties}
               />
             </div>
@@ -113,7 +113,7 @@ export default function LoginPage() {
                 style={{
                   backgroundColor: '#1E1E1C',
                   border: '1px solid rgba(242,242,242,0.08)',
-                  '--tw-ring-color': 'rgba(77,67,158,0.5)',
+                  '--tw-ring-color': 'rgba(131, 59, 14,0.5)',
                 } as React.CSSProperties}
               />
             </div>
@@ -135,11 +135,11 @@ export default function LoginPage() {
               disabled={loading}
               className="w-full py-3 rounded-xl text-sm font-semibold text-white transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
               style={{
-                backgroundColor: '#4D439E',
-                boxShadow: loading ? 'none' : '0 4px 20px rgba(77,67,158,0.35)',
+                backgroundColor: '#833B0E',
+                boxShadow: loading ? 'none' : '0 4px 20px rgba(131, 59, 14,0.35)',
               }}
-              onMouseEnter={e => { if (!loading) (e.currentTarget as HTMLElement).style.backgroundColor = '#5d52b0' }}
-              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.backgroundColor = '#4D439E' }}
+              onMouseEnter={e => { if (!loading) (e.currentTarget as HTMLElement).style.backgroundColor = '#a04d1c' }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.backgroundColor = '#833B0E' }}
             >
               {loading ? (
                 <span className="flex items-center justify-center gap-2">
@@ -149,7 +149,7 @@ export default function LoginPage() {
                   </svg>
                   Entrando...
                 </span>
-              ) : 'Entrar'}
+              ) : 'Access your portal'}
             </button>
           </form>
         </div>

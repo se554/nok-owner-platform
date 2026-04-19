@@ -65,8 +65,8 @@ export default async function ReviewsPage({ params }: Props) {
           className="text-sm px-4 py-2 rounded-xl transition-all duration-200"
           style={{
             color: '#B9B5DC',
-            border: '1px solid rgba(77,67,158,0.3)',
-            backgroundColor: 'rgba(77,67,158,0.08)',
+            border: '1px solid rgba(131, 59, 14,0.3)',
+            backgroundColor: 'rgba(131, 59, 14,0.08)',
           }}
         >
           Pregúntale a NOK AI
@@ -99,7 +99,7 @@ export default async function ReviewsPage({ params }: Props) {
         >
           <div
             className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4"
-            style={{ backgroundColor: 'rgba(77,67,158,0.1)' }}
+            style={{ backgroundColor: 'rgba(131, 59, 14,0.1)' }}
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(185,181,220,0.5)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
               <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
@@ -145,7 +145,7 @@ export default async function ReviewsPage({ params }: Props) {
               {review.host_response && (
                 <div
                   className="mt-4 pl-4 py-2"
-                  style={{ borderLeft: '2px solid rgba(77,67,158,0.4)' }}
+                  style={{ borderLeft: '2px solid rgba(131, 59, 14,0.4)' }}
                 >
                   <p className="text-xs mb-1" style={{ color: '#B9B5DC' }}>Respuesta de NOK</p>
                   <p className="text-xs" style={{ color: 'rgba(242,242,242,0.55)' }}>

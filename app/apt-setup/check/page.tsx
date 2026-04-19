@@ -228,7 +228,7 @@ export default function CheckPage() {
                             <span className="text-xs text-[#D6A700] tabular-nums">{formatPrice(item.unit_price)}</span>
                           )}
                           {item.link && (
-                            <a href={item.link} target="_blank" rel="noopener noreferrer" className="text-xs text-[#4D439E] hover:text-[#B9B5DC]">
+                            <a href={item.link} target="_blank" rel="noopener noreferrer" className="text-xs text-[#833B0E] hover:text-[#B9B5DC]">
                               ver
                             </a>
                           )}

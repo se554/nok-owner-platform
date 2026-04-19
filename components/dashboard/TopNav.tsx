@@ -93,7 +93,7 @@ export default function TopNav({ owner, properties, groups = [] }: TopNavProps) 
       className="fixed top-0 left-0 right-0 z-50 flex items-center h-16 px-6 lg:px-10 gap-6"
       style={{
         backgroundColor: '#141413',
-        borderBottom: '1px solid rgba(77,67,158,0.3)',
+        borderBottom: '1px solid rgba(131, 59, 14,0.3)',
         backdropFilter: 'blur(12px)',
       }}
     >
@@ -147,7 +147,7 @@ export default function TopNav({ owner, properties, groups = [] }: TopNavProps) 
                     className="w-full text-left px-4 py-3 transition-colors duration-150 cursor-pointer"
                     style={{
                       borderBottom: '1px solid rgba(242,242,242,0.05)',
-                      backgroundColor: g.id === activeGroupId ? 'rgba(77,67,158,0.12)' : 'transparent',
+                      backgroundColor: g.id === activeGroupId ? 'rgba(131, 59, 14,0.12)' : 'transparent',
                     }}
                   >
                     <span className="block text-sm text-[#F2F2F2] font-medium">▦ {g.name}</span>
@@ -164,11 +164,11 @@ export default function TopNav({ owner, properties, groups = [] }: TopNavProps) 
                     className="w-full text-left px-4 py-3 transition-colors duration-150 cursor-pointer"
                     style={{
                       borderBottom: '1px solid rgba(242,242,242,0.05)',
-                      backgroundColor: p.id === activePropertyId ? 'rgba(77,67,158,0.12)' : 'transparent',
+                      backgroundColor: p.id === activePropertyId ? 'rgba(131, 59, 14,0.12)' : 'transparent',
                     }}
                     onMouseEnter={e => {
                       if (p.id !== activePropertyId)
-                        (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(77,67,158,0.08)'
+                        (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(131, 59, 14,0.08)'
                     }}
                     onMouseLeave={e => {
                       if (p.id !== activePropertyId)
@@ -207,7 +207,7 @@ export default function TopNav({ owner, properties, groups = [] }: TopNavProps) 
                 className="px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300"
                 style={{
                   color: active ? '#B9B5DC' : 'rgba(242,242,242,0.45)',
-                  backgroundColor: active ? 'rgba(77,67,158,0.15)' : 'transparent',
+                  backgroundColor: active ? 'rgba(131, 59, 14,0.15)' : 'transparent',
                 }}
                 onMouseEnter={e => {
                   if (!active) (e.currentTarget as HTMLElement).style.color = '#B9B5DC'
@@ -220,7 +220,7 @@ export default function TopNav({ owner, properties, groups = [] }: TopNavProps) 
                 {link.ai && !active && (
                   <span
                     className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full font-medium"
-                    style={{ backgroundColor: 'rgba(77,67,158,0.25)', color: '#B9B5DC' }}
+                    style={{ backgroundColor: 'rgba(131, 59, 14,0.25)', color: '#B9B5DC' }}
                   >
                     AI
                   </span>
@@ -234,7 +234,7 @@ export default function TopNav({ owner, properties, groups = [] }: TopNavProps) 
             className="px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300"
             style={{
               color: isActive(analyticsLink.href) ? '#B9B5DC' : 'rgba(242,242,242,0.45)',
-              backgroundColor: isActive(analyticsLink.href) ? 'rgba(77,67,158,0.15)' : 'transparent',
+              backgroundColor: isActive(analyticsLink.href) ? 'rgba(131, 59, 14,0.15)' : 'transparent',
             }}
           >
             {analyticsLink.label}
@@ -253,7 +253,7 @@ export default function TopNav({ owner, properties, groups = [] }: TopNavProps) 
           }}
           onMouseEnter={e => {
             (e.currentTarget as HTMLElement).style.color = '#F2F2F2'
-            ;(e.currentTarget as HTMLElement).style.borderColor = 'rgba(77,67,158,0.4)'
+            ;(e.currentTarget as HTMLElement).style.borderColor = 'rgba(131, 59, 14,0.4)'
           }}
           onMouseLeave={e => {
             (e.currentTarget as HTMLElement).style.color = 'rgba(242,242,242,0.4)'
@@ -270,10 +270,10 @@ export default function TopNav({ owner, properties, groups = [] }: TopNavProps) 
             onClick={() => setShowUserMenu(v => !v)}
             className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold cursor-pointer transition-all duration-200"
             style={{
-              background: 'rgba(77,67,158,0.25)',
-              border: '2px solid #4D439E',
+              background: 'rgba(131, 59, 14,0.25)',
+              border: '2px solid #833B0E',
               color: '#B9B5DC',
-              boxShadow: showUserMenu ? '0 0 0 3px rgba(77,67,158,0.2)' : 'none',
+              boxShadow: showUserMenu ? '0 0 0 3px rgba(131, 59, 14,0.2)' : 'none',
             }}
           >
             {owner.name.charAt(0).toUpperCase()}

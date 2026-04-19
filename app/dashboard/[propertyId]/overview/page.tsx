@@ -286,18 +286,18 @@ export default async function OverviewPage({ params, searchParams }: Props) {
             className="text-xs uppercase tracking-[0.2em] mb-4 fade-up"
             style={{ color: 'rgba(185,181,220,0.7)' }}
           >
-            Portal de Propietarios
+            NOK Owners &nbsp;·&nbsp; Feels right. Anywhere.
           </p>
           <h1
             className="font-serif text-5xl lg:text-6xl font-light text-[#F2F2F2] mb-3 fade-up-delay-1"
           >
-            Bienvenido, {ownerFirstName}
+            Hola, {ownerFirstName}.
           </h1>
           <p
             className="text-base mb-10 fade-up-delay-1"
             style={{ color: 'rgba(242,242,242,0.45)' }}
           >
-            Aquí está el rendimiento de {property.name}
+            Here&apos;s what&apos;s happening with {property.name} today.
           </p>
 
           {/* Stat pills — current month (prorated) */}
@@ -570,7 +570,7 @@ export default async function OverviewPage({ params, searchParams }: Props) {
               <div className="flex flex-col items-center justify-center py-8">
                 <div
                   className="w-10 h-10 rounded-full flex items-center justify-center mb-3"
-                  style={{ backgroundColor: 'rgba(77,67,158,0.1)' }}
+                  style={{ backgroundColor: 'rgba(131, 59, 14,0.1)' }}
                 >
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(185,181,220,0.5)" strokeWidth="1.5">
                     <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
@@ -683,7 +683,7 @@ export default async function OverviewPage({ params, searchParams }: Props) {
             className="shrink-0 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 whitespace-nowrap"
             style={{
               backgroundColor: 'rgba(255,255,255,0.95)',
-              color: '#4D439E',
+              color: '#833B0E',
               boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
             }}
           >
@@ -715,8 +715,8 @@ function StatPill({ label, value }: { label: string; value: string }) {
       className="flex items-center gap-4 px-5 py-3 rounded-xl"
       style={{
         backgroundColor: 'rgba(20,20,19,0.7)',
-        border: '1px solid rgba(77,67,158,0.3)',
-        borderLeft: '3px solid #4D439E',
+        border: '1px solid rgba(131, 59, 14,0.3)',
+        borderLeft: '3px solid #833B0E',
         backdropFilter: 'blur(8px)',
       }}
     >
