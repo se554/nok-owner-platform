@@ -29,7 +29,7 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // Public paths that don't require auth
-  const publicPaths = ['/login', '/auth/callback', '/onboarding', '/admin', '/api/onboarding', '/apt-setup', '/api/apt-setup', '/api/sync-reviews', '/api/cron']
+  const publicPaths = ['/login', '/auth/callback', '/onboarding', '/admin', '/api/onboarding', '/apt-setup', '/api/apt-setup', '/api/sync-reviews', '/api/cron', '/api/owners', '/api/webhooks']
   const isPublic = publicPaths.some((p) => pathname.startsWith(p))
 
   if (!user && !isPublic) {
